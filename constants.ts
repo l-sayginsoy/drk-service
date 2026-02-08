@@ -1,4 +1,4 @@
-import { Ticket, Status, Priority, Technician } from './types';
+import { Ticket, Status, Priority, User, Role, AppArea } from './types';
 
 export const MOCK_TICKETS: Ticket[] = [
   {
@@ -213,18 +213,29 @@ export const MOCK_TICKETS: Ticket[] = [
   }
 ];
 
-export const TECHNICIANS_DATA: Technician[] = [
-    { name: 'Heiko Saupert', status: 'Verfügbar'},
-    { name: 'Ali Najafi', status: 'Aktiv' },
-    { name: 'Torsten Isselhard', status: 'Verfügbar' }
+export const MOCK_USERS: User[] = [
+    { id: 'user-1', name: 'Admin', role: Role.Admin, password: 'admin', isActive: true },
+    { id: 'user-2', name: 'Heiko Saupert', role: Role.Technician, password: '123', isActive: true },
+    { id: 'user-3', name: 'Ali Najafi', role: Role.Technician, password: '123', isActive: true },
+    { id: 'user-4', name: 'Torsten Isselhard', role: Role.Technician, password: '123', isActive: true },
+    { id: 'user-5', name: 'Max Mustermann (Inaktiv)', role: Role.Technician, password: '123', isActive: false },
 ];
+
+// FIX: Export TECHNICIANS_DATA to be used across components
+export const TECHNICIANS_DATA: User[] = MOCK_USERS.filter(u => u.role === Role.Technician);
+
+
+export const BEREICH_OPTIONS = ["Schlosspark", "Ebertpark", "Rheinufer", "An den Seen", "Küche", "Cafeteria", "Wäscherei", "Reinigung", "Untergeschoss", "Verwaltung", "Ausbildung", "Kleiner Saal", "Außenbereich", "Terrasse", "Baumhaus", "Kreisverband", "Sozialstation", "Brandschutz", "Sicherheit", "Sonstiges"];
+// FIX: Export AREAS for use in filters, including an "Alle" option.
+export const AREAS = ['Alle', ...BEREICH_OPTIONS];
+export const MOCK_AREAS: AppArea[] = BEREICH_OPTIONS.map((name, index) => ({
+    id: `area-${index + 1}`,
+    name,
+    isActive: true,
+}));
 
 export const PRIORITIES = ['Alle', 'Hoch', 'Mittel', 'Niedrig'];
 export const STATUSES = ['Alle', 'Offen', 'In Arbeit', 'Überfällig', 'Abgeschlossen'];
-
-export const BEREICH_OPTIONS = ["Schlosspark", "Ebertpark", "Rheinufer", "An den Seen", "Küche", "Cafeteria", "Wäscherei", "Reinigung", "Untergeschoss", "Verwaltung", "Ausbildung", "Kleiner Saal", "Außenbereich", "Terrasse", "Baumhaus", "Kreisverband", "Sozialstation", "Brandschutz", "Sicherheit", "Sonstiges"];
-export const AREAS = ['Alle', ...BEREICH_OPTIONS];
-
 
 // =============================================
 // Centralized Status Color Configuration

@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Ticket, Status, Priority } from '../types';
 import { statusBgColorMap, AREAS, TECHNICIANS_DATA, STATUSES } from '../constants';
 import { DocumentIcon } from './icons/DocumentIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { RefreshIcon } from './icons/RefreshIcon';
+
 
 interface ReportsViewProps {
   tickets: Ticket[];
@@ -138,13 +141,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const completedTickets = filteredTickets.filter(t => t.status === Status.Abgeschlossen).length;
 
         // Chart data
-        const ticketsByAreaRaw = filteredTickets.reduce((acc, ticket) => {
+        // FIX: Provide explicit type for reduce accumulator
+        const ticketsByAreaRaw = filteredTickets.reduce<Record<string, number>>((acc, ticket) => {
             acc[ticket.area] = (acc[ticket.area] || 0) + 1;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
         
-// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
-        const areaStats = filteredTickets.reduce((acc: Record<string, { total: number; overdue: number }>, ticket) => {
+        // FIX: Provide explicit type for reduce accumulator
+        // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
+        const areaStats = filteredTickets.reduce<Record<string, { total: number; overdue: number }>>((acc, ticket) => {
             if (!acc[ticket.area]) {
                 acc[ticket.area] = { total: 0, overdue: 0 };
             }
@@ -162,13 +167,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             }))
             .sort((a, b) => b.value - a.value);
 
-        const ticketsByPriority = filteredTickets.reduce((acc, ticket) => {
+        // FIX: Provide explicit type for reduce accumulator
+        const ticketsByPriority = filteredTickets.reduce<Record<string, number>>((acc, ticket) => {
             acc[ticket.priority] = (acc[ticket.priority] || 0) + 1;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
-// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
-        const technicianStats = filteredTickets.reduce((acc: Record<string, { totalActive: number; overdue: number; label: string }>, ticket) => {
+        // FIX: Provide explicit type for reduce accumulator
+        // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
+        const technicianStats = filteredTickets.reduce<Record<string, { totalActive: number; overdue: number; label: string }>>((acc, ticket) => {
             const tech = ticket.technician;
             if (tech && tech !== 'N/A') {
                 if (!acc[tech]) {
@@ -187,10 +194,11 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const ticketsByTechnicianData = Object.values(technicianStats)
             .sort((a, b) => b.totalActive - a.totalActive);
         
-// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
+        // FIX: Provide explicit type for reduce accumulator
+        // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
         const completedByTechnicianRaw = filteredTickets
             .filter(t => t.status === Status.Abgeschlossen && t.technician && t.technician !== 'N/A')
-            .reduce((acc: Record<string, { count: number; totalResolutionDays: number }>, ticket) => {
+            .reduce<Record<string, { count: number; totalResolutionDays: number }>>((acc, ticket) => {
                 const tech = ticket.technician!;
                 if (!acc[tech]) {
                     acc[tech] = { count: 0, totalResolutionDays: 0 };
@@ -224,8 +232,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             ticketsByArea: Object.entries(ticketsByAreaRaw).map(([label, value]) => ({ label, value })).sort((a,b) => b.value - a.value),
             overdueRateByArea,
             ticketsByPriority: Object.entries(ticketsByPriority).map(([label, value]) => ({ label, value })).sort((a,b) => {
-                const order = { [Priority.Hoch]: 1, [Priority.Mittel]: 2, [Priority.Niedrig]: 3 };
-                return (order[a.label as Priority] || 99) - (order[b.label as Priority] || 99);
+                const order: Record<string, number> = { [Priority.Hoch]: 1, [Priority.Mittel]: 2, [Priority.Niedrig]: 3 };
+                return (order[a.label] ?? 99) - (order[b.label] ?? 99);
             }),
             ticketsByTechnician: ticketsByTechnicianData,
             maxTechTickets: Math.max(...ticketsByTechnicianData.map(item => item.totalActive), 1),
@@ -258,6 +266,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             'all': '(Alle Zeiten)',
         };
         return labels[rangeKey] || '';
+    };
+
+    const handleResetFilters = () => {
+        setReportFilters({
+            timeRange: '30d',
+            area: 'Alle',
+            status: 'Alle',
+            technician: 'Alle',
+        });
     };
 
     return (
@@ -297,6 +314,13 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                     gap: 1rem;
                     margin-bottom: 2rem;
                     box-shadow: var(--shadow-sm);
+                    justify-content: space-between;
+                }
+                .report-filter-controls {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: 1rem;
                 }
                 .filter-group {
                     display: flex;
@@ -323,9 +347,70 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 .time-range-toggle .toggle-btn.active, .chart-toggle .toggle-btn.active {
                     background: var(--bg-secondary); color: var(--text-primary); box-shadow: var(--shadow-sm);
                 }
+                
                 .report-filters .custom-select {
-                    min-width: 180px;
+                    position: relative;
+                    border: 1px solid var(--border);
+                    border-radius: 6px;
+                    padding-right: 2.25rem;
+                    padding-left: 0.75rem;
+                    font-size: 0.9rem;
+                    min-width: 120px;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                    height: 38px;
+                    display: flex;
+                    align-items: center;
+                    transition: var(--transition-smooth);
+                    background-color: var(--bg-tertiary);
                 }
+                .report-filters .custom-select:hover {
+                    border-color: var(--border-active);
+                    background-color: var(--bg-tertiary);
+                }
+                .report-filters .custom-select.active {
+                    border-color: var(--text-secondary);
+                }
+                .report-filters .filter-badge {
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    background-color: var(--border);
+                    padding: 0.15rem 0.5rem;
+                    border-radius: 4px;
+                    margin-left: 0.5rem;
+                }
+
+                .report-filters .custom-select span {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .report-filters .custom-select select {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    opacity: 0;
+                    cursor: pointer;
+                }
+                .report-filters .custom-select svg {
+                    position: absolute;
+                    right: 0.75rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    pointer-events: none;
+                    width: 16px;
+                    height: 16px;
+                    color: var(--text-muted);
+                }
+                .action-btn { 
+                    background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: var(--transition-smooth); font-weight: 500; 
+                }
+                .action-btn:hover { background: var(--border); }
+                .action-btn svg { width: 16px; height: 16px; }
+
 
                 .stats-grid {
                     display: grid;
@@ -568,31 +653,52 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             `}</style>
 
             <div className="report-filters">
-                 <div className="filter-group">
-                    <span className="filter-label">Zeitraum:</span>
-                     <div className="time-range-toggle">
-                        <button className={`toggle-btn ${reportFilters.timeRange === '7d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '7d' }))}>7 T</button>
-                        <button className={`toggle-btn ${reportFilters.timeRange === '30d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '30d' }))}>30 T</button>
-                        <button className={`toggle-btn ${reportFilters.timeRange === '90d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '90d' }))}>90 T</button>
-                        <button className={`toggle-btn ${reportFilters.timeRange === 'all' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: 'all' }))}>Alle</button>
+                <div className="report-filter-controls">
+                    <div className="filter-group">
+                        <span className="filter-label">Zeitraum:</span>
+                        <div className="time-range-toggle">
+                            <button className={`toggle-btn ${reportFilters.timeRange === '7d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '7d' }))}>7 T</button>
+                            <button className={`toggle-btn ${reportFilters.timeRange === '30d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '30d' }))}>30 T</button>
+                            <button className={`toggle-btn ${reportFilters.timeRange === '90d' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: '90d' }))}>90 T</button>
+                            <button className={`toggle-btn ${reportFilters.timeRange === 'all' ? 'active' : ''}`} onClick={() => setReportFilters(f => ({ ...f, timeRange: 'all' }))}>Alle</button>
+                        </div>
+                    </div>
+                    <div className={`custom-select ${reportFilters.area !== 'Alle' ? 'active' : ''}`}>
+                        <span>Bereich</span>
+                        {reportFilters.area !== 'Alle' && <span className="filter-badge">{reportFilters.area}</span>}
+                        <select value={reportFilters.area} onChange={e => setReportFilters(f => ({ ...f, area: e.target.value }))}>
+                            {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                        <ChevronDownIcon />
+                    </div>
+                    <div className={`custom-select ${reportFilters.status !== 'Alle' ? 'active' : ''}`}>
+                        <span>Status</span>
+                        {reportFilters.status !== 'Alle' && <span className="filter-badge">{reportFilters.status}</span>}
+                         <select value={reportFilters.status} onChange={e => setReportFilters(f => ({ ...f, status: e.target.value as Status | 'Alle' }))}>
+                            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <ChevronDownIcon />
+                    </div>
+                    <div className={`custom-select ${reportFilters.technician !== 'Alle' ? 'active' : ''}`}>
+                        <span>Techniker</span>
+                        {reportFilters.technician !== 'Alle' && <span className="filter-badge">{reportFilters.technician === 'N/A' ? 'Nicht zugewiesen' : reportFilters.technician}</span>}
+                        <select value={reportFilters.technician} onChange={e => setReportFilters(f => ({ ...f, technician: e.target.value }))}>
+                            {allTechnicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Nicht zugewiesen' : t}</option>)}
+                        </select>
+                        <ChevronDownIcon />
                     </div>
                 </div>
-                 <select className="custom-select" value={reportFilters.area} onChange={e => setReportFilters(f => ({ ...f, area: e.target.value }))}>
-                    {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-                 <select className="custom-select" value={reportFilters.status} onChange={e => setReportFilters(f => ({ ...f, status: e.target.value as Status | 'Alle' }))}>
-                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select className="custom-select" value={reportFilters.technician} onChange={e => setReportFilters(f => ({ ...f, technician: e.target.value }))}>
-                    {allTechnicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Nicht zugewiesen' : t}</option>)}
-                </select>
+                <button className="action-btn" onClick={handleResetFilters}>
+                    <RefreshIcon />
+                    Zurücksetzen
+                </button>
             </div>
 
             <div className="stats-grid">
                 <StatCard title="Überfällige Tickets" value={reportData.overdueTickets} description="Dringend zu bearbeiten" icon={<ExclamationTriangleIcon />} iconBgColor={statusBgColorMap[Status.Ueberfaellig]} onClick={() => setReportFilters(f => ({ ...f, status: Status.Ueberfaellig }))} />
                 <StatCard title="Offene Tickets" value={reportData.openTickets} description="Warten auf Zuweisung" icon={<DocumentIcon />} iconBgColor={statusBgColorMap[Status.Offen]} onClick={() => setReportFilters(f => ({ ...f, status: Status.Offen }))} />
                 <StatCard title="Tickets in Arbeit" value={reportData.inProgressTickets} description="Aktive Bearbeitung" icon={<WrenchScrewdriverIcon />} iconBgColor={statusBgColorMap[Status.InArbeit]} onClick={() => setReportFilters(f => ({ ...f, status: Status.InArbeit }))} />
-                <StatCard title="Abgeschlossene Tickets" value={reportData.completedTickets} description="Erfolgreich erledigt" icon={<CheckCircleIcon />} iconBgColor={statusBgColorMap[Status.Abgeschlossen]} onClick={() => setReportFilters(f => ({ ...f, status: Status.Abgeschlossen }))} />
+                <StatCard title="Abgeschlossene Tickets" value={reportData.completedTickets} description="Erfolgreich abgeschlossen" icon={<CheckCircleIcon />} iconBgColor={statusBgColorMap[Status.Abgeschlossen]} onClick={() => setReportFilters(f => ({ ...f, status: Status.Abgeschlossen }))} />
             </div>
 
             <div className="charts-grid">
@@ -608,7 +714,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             </div>
 
              <div className="chart-container">
-                <h3 className="chart-title">Aktive Tickets je Techniker</h3>
+                <div className="chart-header-with-toggle">
+                    <h3 className="chart-title">Aktive Tickets je Techniker</h3>
+                </div>
                 <div className="horizontal-bar-list">
                 {reportData.ticketsByTechnician.length > 0 ? reportData.ticketsByTechnician.map((tech, index) => (
                     <div className="horizontal-bar-item" key={tech.label} style={{ animationDelay: `${index * 50}ms` }} title={`${tech.label}: ${tech.totalActive} Aktiv, ${tech.overdue} Überfällig`}>
@@ -630,7 +738,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             </div>
 
             <div className="chart-container" style={{ marginTop: '1.5rem' }}>
-                <h3 className="chart-title">Erledigte Tickets je Techniker {getTimeRangeLabel(reportFilters.timeRange)}</h3>
+                <div className="chart-header-with-toggle">
+                    <h3 className="chart-title">Abgeschlossene Tickets je Techniker {getTimeRangeLabel(reportFilters.timeRange)}</h3>
+                </div>
                 <div className="horizontal-bar-list">
                 {reportData.completedByTechnician.length > 0 ? reportData.completedByTechnician.map((tech, index) => (
                     <div className="horizontal-bar-item-wrapper" key={tech.label} style={{ animationDelay: `${index * 50}ms` }}>
@@ -647,7 +757,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                                     ></div>
                                 </div>
                                  <div className="horizontal-bar-sub-label">
-                                    Ø Lösungszeit: {tech.avgResolutionDays} {tech.avgResolutionDays === 1 ? 'Tag' : 'Tage'}
+                                    Ø Bearbeitungsdauer: {tech.avgResolutionDays} {tech.avgResolutionDays === 1 ? 'Tag' : 'Tage'}
                                 </div>
                             </div>
                             <span className="horizontal-bar-value">{tech.value}</span>

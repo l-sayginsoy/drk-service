@@ -1,7 +1,7 @@
 import React from 'react';
 import { SearchIcon } from './icons/SearchIcon';
-import { PlusIcon } from './icons/PlusIcon';
 import { Status } from '../types';
+import { statusColorMap } from '../constants';
 
 interface HeaderProps {
     stats: {
@@ -11,22 +11,23 @@ interface HeaderProps {
     };
     filters: { search: string, status: string };
     setFilters: React.Dispatch<React.SetStateAction<any>>;
-    onNewTicketClick: () => void;
     currentView: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicketClick, currentView }) => {
+const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, currentView }) => {
     
     const getPageTitle = () => {
         switch (currentView) {
             case 'dashboard': return 'Dashboard';
             case 'tickets': return 'Aktuelle Tickets';
             case 'erledigt': return 'Abgeschlossen';
+            case 'techniker': return 'Techniker Übersicht';
             case 'reports': return 'Reports';
             default: return 'Dashboard';
         }
     }
-    const pageTitle = getPageTitle();
+    // For the technician view, we render the title in the component itself.
+    const pageTitle = currentView === 'techniker' ? '' : getPageTitle();
 
     const handleStatClick = (status: Status) => {
         setFilters((prev: any) => ({
@@ -42,7 +43,8 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding-bottom: 1.5rem;
+                    /* Conditional padding: only add padding if there's content inside */
+                    padding-bottom: ${pageTitle || currentView !== 'techniker' ? '1.5rem' : '0'};
                 }
                  .header-left {
                     display: flex;
@@ -57,42 +59,46 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                     display: flex;
                     align-items: center;
                     gap: 1.5rem;
+                    margin-left: auto;
                 }
                 .stat-group {
                     display: flex;
-                    gap: 1.5rem;
-                    border-right: 1px solid var(--border);
-                    padding-right: 1.5rem;
+                    gap: 1rem;
                 }
                 .stat-item {
                     display: flex;
-                    align-items: baseline;
-                    gap: 0.5rem;
-                    padding: 0.5rem 1rem;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.6rem 1rem;
                     border-radius: var(--radius-md);
                     cursor: pointer;
                     transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-                    border: 1px solid transparent;
+                    background-color: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                    min-width: 140px;
+                    justify-content: center;
                 }
                 .stat-item:hover {
                     background-color: var(--bg-tertiary);
+                    border-color: var(--border-active);
                 }
                 .stat-item.active {
-                    background-color: var(--bg-secondary);
-                    border-color: var(--border-active);
+                    background-color: var(--bg-tertiary);
+                    border-color: var(--accent-primary);
                     box-shadow: var(--shadow-sm);
                 }
-                .stat-item.active .stat-value,
                 .stat-item.active .stat-label {
                     color: var(--text-primary);
                 }
                 .stat-value {
                     font-size: 1.5rem;
-                    font-weight: 600;
+                    font-weight: 700;
+                    line-height: 1;
                 }
                 .stat-label {
                     font-size: 0.9rem;
-                    color: var(--text-muted);
+                    font-weight: 500;
+                    color: var(--text-secondary);
                 }
                 .search-container {
                     position: relative;
@@ -118,44 +124,7 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                     color: var(--text-muted);
                 }
                 .search-icon svg { width: 18px; height: 18px; }
-                
-                .btn {
-                    padding: 0.6rem 1.25rem;
-                    border-radius: 8px;
-                    font-weight: 500;
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                    transition: var(--transition-smooth);
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    border: 1px solid transparent;
-                }
-                .btn-primary {
-                    background-color: var(--accent-primary);
-                    border-color: var(--accent-primary);
-                    color: #fff;
-                }
-                .btn-primary:hover {
-                     opacity: 0.9;
-                }
-                 .btn-secondary {
-                    background-color: var(--bg-tertiary);
-                    border-color: var(--border);
-                    color: var(--text-secondary);
-                }
-                .btn-secondary:hover {
-                    background-color: var(--border);
-                }
-                .btn-abmelden {
-                    background: transparent;
-                    border-color: var(--accent-danger);
-                    color: var(--accent-danger);
-                }
-                .btn-abmelden:hover {
-                    background: rgba(220, 53, 69, 0.1);
-                }
-                
+                                
                 @media (max-width: 1024px) {
                     .main-header {
                         flex-direction: column;
@@ -165,6 +134,7 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                     .header-actions {
                         width: 100%;
                         justify-content: space-between;
+                        margin-left: 0;
                     }
                 }
                 @media (max-width: 768px) {
@@ -175,21 +145,20 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                         gap: 1rem;
                     }
                     .stat-group {
-                        padding-right: 0;
-                        border-right: none;
                         width: 100%;
                         justify-content: space-around;
                         gap: 0.5rem;
                     }
                     .search-container { width: 100%; }
                     .search-input { width: 100%; }
-                    .btn-primary { justify-content: center; }
                 }
 
             `}</style>
-            <div className="header-left">
-                <h1 className="header-title">{pageTitle}</h1>
-            </div>
+            {pageTitle && (
+                <div className="header-left">
+                    <h1 className="header-title">{pageTitle}</h1>
+                </div>
+            )}
             <div className="header-actions">
                 {currentView === 'dashboard' ? (
                      <div className="stat-group">
@@ -199,7 +168,7 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                             role="button"
                             tabIndex={0}
                         >
-                            <span className="stat-value">{stats.open}</span>
+                            <span className="stat-value" style={{ color: `var(${statusColorMap[Status.Offen]})` }}>{stats.open}</span>
                             <span className="stat-label">Offen</span>
                         </div>
                         <div
@@ -208,7 +177,7 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                             role="button"
                             tabIndex={0}
                         >
-                            <span className="stat-value">{stats.inProgress}</span>
+                            <span className="stat-value" style={{ color: `var(${statusColorMap[Status.InArbeit]})` }}>{stats.inProgress}</span>
                             <span className="stat-label">In Arbeit</span>
                         </div>
                          <div
@@ -217,11 +186,11 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                             role="button"
                             tabIndex={0}
                          >
-                            <span className="stat-value">{stats.overdue}</span>
+                            <span className="stat-value" style={{ color: `var(${statusColorMap[Status.Ueberfaellig]})` }}>{stats.overdue}</span>
                             <span className="stat-label">Überfällig</span>
                         </div>
                     </div>
-                ) : currentView !== 'reports' ? (
+                ) : (currentView === 'tickets' || currentView === 'erledigt') ? (
                     <div className="search-container">
                          <span className="search-icon"><SearchIcon /></span>
                         <input
@@ -233,11 +202,6 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, onNewTicket
                         />
                     </div>
                 ) : null}
-                
-                <button className="btn btn-primary" onClick={onNewTicketClick}>
-                    <PlusIcon />
-                    Neues Ticket
-                </button>
             </div>
         </header>
     );

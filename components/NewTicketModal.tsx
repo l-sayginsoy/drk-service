@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Ticket, Priority } from '../types';
-import { TECHNICIANS_DATA } from '../constants';
+// FIX: Import User type and remove TECHNICIANS_DATA import.
+import { Ticket, Priority, User } from '../types';
 
 interface NewTicketModalProps {
   onClose: () => void;
   onSave: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => void;
   areas: string[];
+  // FIX: Add technicians prop to the interface
+  technicians: User[];
 }
 
 // Helper function to format date for input type="date" (YYYY-MM-DD)
@@ -15,13 +17,14 @@ const getFutureDateString = (days: number): string => {
     return futureDate.toISOString().split('T')[0];
 };
 
-const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas }) => {
+const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas, technicians }) => {
   const [title, setTitle] = useState('');
   const [area, setArea] = useState(areas[0] || '');
   const [location, setLocation] = useState('');
   const [reporter, setReporter] = useState('');
   const [dueDate, setDueDate] = useState(getFutureDateString(7)); // Default due date 7 days from now
-  const [technician, setTechnician] = useState(TECHNICIANS_DATA[0]?.name || '');
+  // FIX: Use technicians prop for initial state.
+  const [technician, setTechnician] = useState(technicians[0]?.name || '');
   const [priority, setPriority] = useState<Priority>(Priority.Mittel);
   const [description, setDescription] = useState('');
 
@@ -178,7 +181,8 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas 
             <div className="form-group">
                 <label htmlFor="technician">Techniker</label>
                 <select id="technician" value={technician} onChange={e => setTechnician(e.target.value)}>
-                    {TECHNICIANS_DATA.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                    {/* FIX: Use technicians prop */}
+                    {technicians.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                 </select>
             </div>
             <div className="form-group">

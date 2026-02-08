@@ -86,7 +86,6 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
         onUpdateTicket(updatedTicket);
         setNewNote('');
         
-        // Simulate email notification
         if (updatedTicket.reporterEmail) {
             console.log(`[E-Mail-Simulation] Sende E-Mail an: ${updatedTicket.reporterEmail}`);
             console.log(`Betreff: Neue Notiz zu Ihrem Ticket ${updatedTicket.id}`);
@@ -106,290 +105,201 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
       <div className="detail-sidebar">
         <style>{`
             .detail-sidebar-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 100;
-                animation: fadeIn 0.3s ease;
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.5); z-index: 100; animation: fadeIn 0.3s ease;
             }
             .detail-sidebar {
-                position: fixed;
-                top: 0;
-                right: 0;
-                width: 480px;
-                height: 100%;
-                background: var(--bg-secondary);
-                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-                z-index: 101;
-                display: flex;
-                flex-direction: column;
-                animation: slideInRight 0.3s ease;
+                position: fixed; top: 0; right: 0; width: 500px; height: 100%;
+                background: var(--bg-secondary); box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+                z-index: 101; display: flex; flex-direction: column; animation: slideInRight 0.3s ease;
             }
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
             @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-            .sidebar-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1rem 1.5rem;
-                border-bottom: 1px solid var(--border);
-                flex-shrink: 0;
+            
+            /* --- New Compact Layout --- */
+            .sidebar-header-compact {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 1rem 1.5rem; flex-shrink: 0;
             }
-            .sidebar-title {
-                font-size: 1.1rem;
-                font-weight: 600;
-                color: var(--text-primary);
-            }
-            .sidebar-title span {
-                color: var(--text-muted);
-                font-weight: 500;
+            .sidebar-title-compact {
+                font-size: 1.1rem; font-weight: 600; color: var(--text-primary);
             }
             .close-btn {
-                background: none;
-                border: none;
-                cursor: pointer;
-                color: var(--text-muted);
-                padding: 0.5rem;
-                margin: -0.5rem;
+                background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; margin: -0.5rem;
             }
             .close-btn:hover { color: var(--text-primary); }
             .close-btn svg { width: 24px; height: 24px; }
             
-            .sidebar-body {
-                flex-grow: 1;
-                overflow-y: auto;
-                padding: 0.5rem 1.5rem 1.5rem;
+            .sidebar-body-compact {
+                flex-grow: 1; overflow-y: auto; padding: 0.5rem 1.5rem 1.5rem;
             }
-             .sidebar-body::-webkit-scrollbar { width: 6px; }
-             .sidebar-body::-webkit-scrollbar-track { background: var(--bg-tertiary); }
-             .sidebar-body::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 3px; }
-             [data-theme="dark"] .sidebar-body::-webkit-scrollbar-thumb { background: #555; }
-
-            .detail-block {
-                padding: 1rem 0;
-                border-top: 1px solid var(--border);
+            .sidebar-body-compact::-webkit-scrollbar { width: 6px; }
+            .sidebar-body-compact::-webkit-scrollbar-track { background: transparent; }
+            .sidebar-body-compact::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+            [data-theme="dark"] .sidebar-body-compact::-webkit-scrollbar-thumb { background: #555; }
+            
+            .detail-group { margin-bottom: 1rem; }
+            
+            .detail-label-compact {
+                font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.25rem;
             }
-            .detail-block:first-child {
-                padding-top: 0.25rem;
-                border-top: none;
-            }
-             .detail-block:last-child {
-                padding-bottom: 0;
+            .detail-subject-text {
+                font-size: 1rem; color: var(--text-primary); line-height: 1.4;
             }
 
-            .detail-label {
-                font-size: 0.8rem;
-                font-weight: 600;
-                color: var(--text-secondary);
-                margin-bottom: 0.3rem;
+            .auftrag-grid {
+                display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem;
             }
-            .ticket-main-title {
-                font-size: 1.3rem;
-                font-weight: 600;
-                color: var(--text-primary);
-                line-height: 1.3;
+            .grid-item-span-2 { grid-column: span 2; }
+            
+            .detail-value-compact, .editable-field-compact {
+                font-size: 0.85rem; font-weight: 500; border-radius: var(--radius-md);
+                height: 32px; display: flex; align-items: center; justify-content: flex-start;
+                padding: 0 0.75rem;
+            }
+            .detail-value-compact {
+                background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--bg-tertiary);
             }
             
-            .assignment-panel {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.5rem;
+            .editable-field-compact {
+                position: relative; background: var(--bg-secondary); border: 1px solid var(--border);
+                color: var(--text-primary); justify-content: space-between;
+                transition: border-color 0.2s ease, background-color 0.2s ease;
             }
-            
-            .description-box, .note-item {
-                 background: var(--bg-tertiary);
-                 padding: 0.75rem 1rem;
-                 border-radius: 8px;
-                 font-size: 0.9rem;
-                 color: var(--text-primary);
-                 line-height: 1.6;
+            .editable-field-compact:hover { border-color: var(--border-active); background-color: var(--bg-tertiary); }
+            .editable-field-compact select, .editable-field-compact input {
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
             }
-            
-            .detail-value, .date-value-field {
-                font-size: 0.85rem;
-                font-weight: 500;
-                color: var(--text-primary);
-                background: var(--bg-tertiary);
-                padding: 0.4rem 0.75rem;
-                border-radius: var(--radius-md);
-                border: 1px solid var(--border);
-                text-align: center;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+            .editable-field-compact.priority-high { background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.2); }
+            .editable-field-compact.priority-medium { background-color: rgba(255, 193, 7, 0.1); color: #d97706; border-color: rgba(255, 193, 7, 0.2); }
+            .editable-field-compact.priority-low { background-color: rgba(25, 135, 84, 0.1); color: var(--accent-success); border-color: rgba(25, 135, 84, 0.2); }
 
-            .notes-list {
-                display: flex;
-                flex-direction: column;
-                gap: 0.75rem;
-                margin-top: 1rem;
+            .description-box-compact {
+                margin-top: 1rem; background: var(--bg-tertiary); padding: 0.75rem;
+                border-radius: var(--radius-md); font-size: 0.9rem; color: var(--text-primary);
+                line-height: 1.6;
             }
-            
+            .section-separator {
+                border: 0; height: 1px; background-color: var(--border); margin: 1.5rem 0;
+            }
+            .notes-title-compact {
+                font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;
+            }
+            .notes-list-compact { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
+            .note-item-compact {
+                background: var(--bg-tertiary); padding: 0.6rem 0.8rem; border-radius: var(--radius-md);
+                font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;
+            }
             .note-meta-reformatted {
-                display: block;
-                text-align: right;
-                font-size: 0.8rem;
-                font-style: normal;
-                color: var(--text-muted);
-                margin-top: 0.5rem;
+                display: block; text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;
             }
-            .photo-gallery {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.75rem;
-                margin-top: 0.5rem;
-            }
-            .photo-thumbnail {
-                width: 80px;
-                height: 80px;
-                border-radius: 8px;
-                overflow: hidden;
-                border: 1px solid var(--border);
-                cursor: pointer;
-            }
-            .photo-thumbnail img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                transition: transform 0.2s ease;
-            }
-            .photo-thumbnail:hover img {
-                transform: scale(1.1);
-            }
-
-             /* Unified Editable fields */
-            .editable-field {
-                position: relative;
-                background: var(--bg-secondary);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-md);
-                padding: 0.4rem 0.75rem;
-                font-size: 0.85rem;
-                font-weight: 500;
-                color: var(--text-primary);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 0.5rem;
-                border-left-width: 4px;
-            }
-            .editable-field select, .editable-field input {
-                position: absolute;
-                top: 0; left: 0;
-                width: 100%; height: 100%;
-                opacity: 0;
-                cursor: pointer;
-            }
-            .editable-field:hover {
-                border-color: var(--border-active);
-                background-color: var(--bg-tertiary);
-            }
-            
-            .editable-field.priority-high {
-                border-left-color: var(--accent-danger);
-                background-color: rgba(220, 53, 69, 0.1);
-                color: #c82333;
-            }
-            .editable-field.priority-medium {
-                border-left-color: var(--accent-warning);
-                background-color: rgba(255, 193, 7, 0.1);
-                color: #d97706;
-            }
-            .editable-field.priority-low {
-                border-left-color: var(--accent-success);
-                background-color: rgba(25, 135, 84, 0.1);
-                color: var(--accent-success);
-            }
-
-            .editable-field.priority-high:hover { background-color: rgba(220, 53, 69, 0.2); }
-            .editable-field.priority-medium:hover { background-color: rgba(255, 193, 7, 0.2); }
-            .editable-field.priority-low:hover { background-color: rgba(25, 135, 84, 0.2); }
-
-            .editable-field.technician-assigned { border-left-color: var(--text-secondary); }
-            .editable-field.is-date-field { background-color: var(--bg-tertiary); }
-            
-            .note-textarea {
+            .note-textarea-compact {
                 width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border);
-                border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.9rem;
-                color: var(--text-primary); line-height: 1.6; margin-top: 0.5rem;
+                border-radius: var(--radius-md); padding: 0.6rem 0.8rem; font-size: 0.9rem;
+                color: var(--text-primary); line-height: 1.5; margin-bottom: 0.5rem;
                 resize: vertical; font-family: inherit;
             }
-            .note-textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
-            .add-note-btn { width: 100%; margin-top: 0.75rem; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer; border: 1px solid transparent; background-color: var(--accent-primary); border-color: var(--accent-primary); color: white; transition: var(--transition-smooth); }
-            .add-note-btn:hover:not(:disabled) { opacity: 0.9; }
-            .add-note-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-            .wish-date-field { color: var(--text-primary); border-left: 4px solid var(--accent-warning); }
-
-            @media (max-width: 768px) {
-                .detail-sidebar { width: 90%; }
-                .assignment-panel { grid-template-columns: 1fr; }
+            .note-textarea-compact:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
+            
+            .add-note-btn-compact {
+                width: 100%; padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 500;
+                font-size: 0.85rem; cursor: pointer;
+                border: 1px solid transparent; /* Prevent layout shift */
+                transition: var(--transition-smooth);
             }
+            .add-note-btn-compact:disabled {
+                background-color: var(--bg-tertiary);
+                border-color: var(--border);
+                color: var(--text-secondary);
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .add-note-btn-compact:not(:disabled) {
+                background-color: var(--accent-primary);
+                border-color: var(--accent-primary);
+                color: #fff;
+            }
+            .add-note-btn-compact:hover:not(:disabled) {
+                opacity: 0.9;
+            }
+            
+            .photo-gallery { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+            .photo-thumbnail { width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+            .photo-thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s ease; }
+            .photo-thumbnail:hover img { transform: scale(1.1); }
         `}</style>
-        <div className="sidebar-header">
-            <h2 className="sidebar-title"><span>Ticket:</span> {ticket.id}</h2>
+        <div className="sidebar-header-compact">
+            <h2 className="sidebar-title-compact">Ticket {ticket.id}</h2>
             <button className="close-btn" onClick={onClose}><XIcon /></button>
         </div>
-        <div className="sidebar-body">
-            <div className="detail-block">
-                <p className="detail-label">Betreff</p>
-                <h3 className="ticket-main-title">{ticket.title}</h3>
+        <div className="sidebar-body-compact">
+            
+            <div className="detail-group">
+                <p className="detail-label-compact">Betreff</p>
+                <p className="detail-subject-text">{ticket.title}</p>
             </div>
-            <div className="detail-block">
-                 <div className="assignment-panel" style={{ marginBottom: '1rem' }}>
-                    <div> <p className="detail-label">Gemeldet von</p> <p className="detail-value">{ticket.reporter}</p> </div>
-                    <div> <p className="detail-label">Bereich</p> <p className="detail-value">{ticket.area}</p> </div>
-                    <div> <p className="detail-label">Ort / Raum</p> <p className="detail-value">{ticket.location}</p> </div>
+
+            <div className="auftrag-grid">
+                <div className="grid-item">
+                    <p className="detail-label-compact">Gemeldet von</p>
+                    <p className="detail-value-compact">{ticket.reporter}</p>
                 </div>
-                <div className="assignment-panel" style={{ marginBottom: '1rem' }}>
-                    <div>
-                        <p className="detail-label">Status</p>
-                         <div className="editable-field" style={{ borderLeftColor: `var(${statusColorMap[ticket.status]})`, backgroundColor: statusBgColorMap[ticket.status], color: `var(${statusColorMap[ticket.status]})` }}>
-                            <span>{ticket.status}</span><ChevronDownIcon />
-                            <select value={ticket.status} onChange={(e) => handleFieldChange('status', e.target.value as Status)}>
-                                {statuses.map(s => <option key={s} value={s}>{s === Status.Abgeschlossen ? 'Abschließen' : s}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <p className="detail-label">Priorität</p>
-                        <div className={`editable-field ${priorityClasses[ticket.priority]}`}>
-                            <span>{ticket.priority}</span><ChevronDownIcon />
-                            <select value={ticket.priority} onChange={(e) => handleFieldChange('priority', e.target.value as Priority)}>
-                                {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                     <div>
-                        <p className="detail-label">Techniker</p>
-                        <div className={`editable-field ${ticket.technician !== 'N/A' ? 'technician-assigned' : ''}`}>
-                            <span>{formatTechnicianName(ticket.technician)}</span><ChevronDownIcon />
-                            <select value={ticket.technician} onChange={(e) => handleFieldChange('technician', e.target.value)}>
-                                {technicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Zuweisen' : t}</option>)}
-                            </select>
-                        </div>
+                <div className="grid-item">
+                    <p className="detail-label-compact">Bereich</p>
+                    <p className="detail-value-compact">{ticket.area}</p>
+                </div>
+                <div className="grid-item grid-item-span-2">
+                    <p className="detail-label-compact">Ort / Raum</p>
+                    <p className="detail-value-compact">{ticket.location}</p>
+                </div>
+                <div className="grid-item">
+                    <p className="detail-label-compact">Status</p>
+                    <div className="editable-field-compact" style={{ backgroundColor: statusBgColorMap[ticket.status], borderColor: `var(${statusColorMap[ticket.status]})`, color: `var(${statusColorMap[ticket.status]})` }}>
+                        <span>{ticket.status}</span><ChevronDownIcon />
+                        <select value={ticket.status} onChange={(e) => handleFieldChange('status', e.target.value as Status)}>
+                            {statuses.map(s => <option key={s} value={s}>{s === Status.Abgeschlossen ? 'Abschließen' : s}</option>)}
+                        </select>
                     </div>
                 </div>
-                <div className="assignment-panel">
-                     <div> <p className="detail-label">Eingang</p> <p className="date-value-field">{ticket.entryDate}</p> </div>
-                     {ticket.wunschTermin && <div><p className="detail-label">Wunsch Termin</p><p className="date-value-field wish-date-field">{ticket.wunschTermin}</p></div>}
-                    <div>
-                        <p className="detail-label">Fällig bis</p>
-                         <div className="editable-field is-date-field" style={ticket.status === Status.Ueberfaellig ? { borderLeftColor: `var(${statusColorMap[Status.Ueberfaellig]})`, backgroundColor: statusBgColorMap[Status.Ueberfaellig] } : {}}>
-                            <span>{ticket.dueDate}</span>
-                            <input type="date" value={toInputDate(ticket.dueDate)} onChange={(e) => handleFieldChange('dueDate', fromInputDate(e.target.value))} />
-                        </div>
+                <div className="grid-item">
+                    <p className="detail-label-compact">Priorität</p>
+                    <div className={`editable-field-compact ${priorityClasses[ticket.priority]}`}>
+                        <span>{ticket.priority}</span><ChevronDownIcon />
+                        <select value={ticket.priority} onChange={(e) => handleFieldChange('priority', e.target.value as Priority)}>
+                            {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
                     </div>
-                    {ticket.completionDate && <div><p className="detail-label">Abgeschlossen am</p><p className="date-value-field">{ticket.completionDate}</p></div>}
                 </div>
+                <div className="grid-item grid-item-span-2">
+                    <p className="detail-label-compact">Techniker</p>
+                    <div className={`editable-field-compact`}>
+                        <span>{formatTechnicianName(ticket.technician)}</span><ChevronDownIcon />
+                        <select value={ticket.technician} onChange={(e) => handleFieldChange('technician', e.target.value)}>
+                            {technicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Zuweisen' : t}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="grid-item">
+                    <p className="detail-label-compact">Eingang</p>
+                    <p className="detail-value-compact">{ticket.entryDate}</p>
+                </div>
+                <div className="grid-item">
+                    <p className="detail-label-compact">Fällig bis</p>
+                    <div className="editable-field-compact" style={ticket.status === Status.Ueberfaellig ? { borderColor: `var(${statusColorMap[Status.Ueberfaellig]})`, backgroundColor: statusBgColorMap[Status.Ueberfaellig] } : {}}>
+                        <span>{ticket.dueDate}</span>
+                        <input type="date" value={toInputDate(ticket.dueDate)} onChange={(e) => handleFieldChange('dueDate', fromInputDate(e.target.value))} />
+                    </div>
+                </div>
+                {ticket.wunschTermin && <div className="grid-item"><p className="detail-label-compact">Wunsch-Termin</p><p className="detail-value-compact">{ticket.wunschTermin}</p></div>}
+                {ticket.completionDate && <div className="grid-item"><p className="detail-label-compact">Abgeschlossen am</p><p className="detail-value-compact">{ticket.completionDate}</p></div>}
             </div>
-            {ticket.photos && ticket.photos.length > 0 && (
-                <div className="detail-block">
-                    <p className="detail-label">Fotos</p>
+
+            {ticket.description && ticket.description.trim() && (
+                <div className="description-box-compact">{ticket.description}</div>
+            )}
+             {ticket.photos && ticket.photos.length > 0 && (
+                <div className="detail-group" style={{marginTop: '1rem'}}>
+                    <p className="detail-label-compact">Fotos</p>
                     <div className="photo-gallery">
                         {ticket.photos.map((photo, index) => (
                             <a key={index} href={photo} target="_blank" rel="noopener noreferrer" className="photo-thumbnail">
@@ -399,16 +309,20 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                     </div>
                 </div>
             )}
-            <div className="detail-block">
-                 {ticket.description && ticket.description.trim() && (<><p className="detail-label">Beschreibung</p><div className="description-box">{ticket.description}</div></>)}
+            
+            <hr className="section-separator" />
+            
+            <div className="notes-section">
+                <h3 className="notes-title-compact">Notizen</h3>
                 {ticket.notes && ticket.notes.length > 0 && (
-                     <div className="notes-list"><p className="detail-label">Notizen</p>{[...ticket.notes].reverse().map((note, index) => (<div className="note-item" key={index}>{formatNote(note)}</div>))}</div>
+                     <div className="notes-list-compact">
+                        {[...ticket.notes].reverse().map((note, index) => (<div className="note-item-compact" key={index}>{formatNote(note)}</div>))}
+                     </div>
                 )}
-            </div>
-            <div className="detail-block">
-                <p className="detail-label">Neue Notiz hinzufügen</p>
-                <textarea className="note-textarea" rows={3} placeholder="Hier Notiz eingeben..." value={newNote} onChange={(e) => setNewNote(e.target.value)}></textarea>
-                <button className="add-note-btn" onClick={handleAddNote} disabled={!newNote.trim()}>Notiz speichern</button>
+                 <div className="new-note-form">
+                    <textarea className="note-textarea-compact" rows={2} placeholder="Neue Notiz eingeben..." value={newNote} onChange={(e) => setNewNote(e.target.value)}></textarea>
+                    <button className="add-note-btn-compact" onClick={handleAddNote} disabled={!newNote.trim()}>Notiz speichern</button>
+                </div>
             </div>
         </div>
       </div>

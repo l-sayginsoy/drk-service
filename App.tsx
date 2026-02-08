@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Ticket, Status, Priority, Role, GroupableKey } from './types';
-import { MOCK_TICKETS, AREAS, TECHNICIANS_DATA, STATUSES } from './constants';
+import { Ticket, Status, Priority, Role, GroupableKey, User, AppArea } from './types';
+import { MOCK_TICKETS, MOCK_USERS, MOCK_AREAS, STATUSES } from './constants';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -15,8 +15,12 @@ import TicketDetailSidebar from './components/TicketDetailSidebar';
 import BulkActionBar from './components/BulkActionBar';
 import ErledigtTableView from './components/ErledigtTableView';
 import ReportsView from './components/ReportsView';
+import TechnicianView from './components/TechnicianView';
+import SettingsView from './components/SettingsView';
 
-const LOCAL_STORAGE_KEY = 'facility-management-tickets';
+const LOCAL_STORAGE_KEY_TICKETS = 'facility-management-tickets';
+const LOCAL_STORAGE_KEY_USERS = 'facility-management-users';
+const LOCAL_STORAGE_KEY_AREAS = 'facility-management-areas';
 
 const parseGermanDate = (dateStr: string): Date | null => {
     if (!dateStr || dateStr === 'N/A') return null;
@@ -44,7 +48,7 @@ const getFormattedDate = () => {
 
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<{ displayName: string; role: Role } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const savedUser = window.localStorage.getItem('currentUser');
       return savedUser ? JSON.parse(savedUser) : null;
@@ -56,12 +60,26 @@ const App: React.FC = () => {
 
   const [tickets, setTickets] = useState<Ticket[]>(() => {
     try {
-      const savedTickets = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      const savedTickets = window.localStorage.getItem(LOCAL_STORAGE_KEY_TICKETS);
       if (savedTickets) return JSON.parse(savedTickets);
-    } catch (error) {
-      console.error("Konnte Tickets nicht aus dem localStorage laden.", error);
-    }
+    } catch (error) { console.error("Konnte Tickets nicht aus dem localStorage laden.", error); }
     return MOCK_TICKETS;
+  });
+
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const savedData = window.localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      if (savedData) return JSON.parse(savedData);
+    } catch (error) { console.error("Konnte Benutzer nicht aus dem localStorage laden.", error); }
+    return MOCK_USERS;
+  });
+  
+  const [areas, setAreas] = useState<AppArea[]>(() => {
+    try {
+      const savedData = window.localStorage.getItem(LOCAL_STORAGE_KEY_AREAS);
+      if (savedData) return JSON.parse(savedData);
+    } catch (error) { console.error("Konnte Bereiche nicht aus dem localStorage laden.", error); }
+    return MOCK_AREAS;
   });
 
   const [filters, setFilters] = useState({ area: 'Alle', technician: 'Alle', priority: 'Alle', status: 'Alle', search: '' });
@@ -80,6 +98,16 @@ const App: React.FC = () => {
         else window.localStorage.removeItem('currentUser');
     } catch (error) { console.error("Could not save user to localStorage", error); }
   }, [currentUser]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(users)); }
+    catch (error) { console.error("Konnte Benutzer nicht im localStorage speichern.", error); }
+  }, [users]);
+  
+  useEffect(() => {
+    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_AREAS, JSON.stringify(areas)); }
+    catch (error) { console.error("Konnte Bereiche nicht im localStorage speichern.", error); }
+  }, [areas]);
   
   useEffect(() => {
     const checkAndSetOverdueTickets = () => {
@@ -106,13 +134,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    try { window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tickets)); }
+    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_TICKETS, JSON.stringify(tickets)); }
     catch (error) { console.error("Konnte Tickets nicht im localStorage speichern.", error); }
   }, [tickets]);
 
   useEffect(() => {
-    if (currentUser?.role === Role.Technician && currentUser.displayName && currentView === 'tickets') {
-      setFilters(prev => ({ ...prev, technician: currentUser.displayName }));
+    if (currentUser?.role === Role.Technician && currentUser.name && currentView === 'tickets') {
+      setFilters(prev => ({ ...prev, technician: currentUser.name }));
     }
   }, [currentUser, currentView]);
 
@@ -169,9 +197,12 @@ const App: React.FC = () => {
     return newTicketId;
   };
   
+  const activeAreas = useMemo(() => areas.filter(a => a.isActive), [areas]);
+  const activeTechnicians = useMemo(() => users.filter(u => u.isActive && u.role === Role.Technician), [users]);
+
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
-        if (currentView === 'reports') return true;
+        if (['reports', 'techniker', 'settings'].includes(currentView)) return true;
         const searchLower = filters.search.toLowerCase();
         if (filters.search && !ticket.title.toLowerCase().includes(searchLower) && !ticket.id.toLowerCase().includes(searchLower) && !ticket.area.toLowerCase().includes(searchLower)) return false;
         if (filters.area !== 'Alle' && ticket.area !== filters.area) return false;
@@ -193,20 +224,35 @@ const App: React.FC = () => {
       overdue: tickets.filter(t => t.status === Status.Ueberfaellig).length,
   }), [tickets]);
 
-  const allAreas = AREAS;
-  const allTechnicians = useMemo(() => ['N/A', ...TECHNICIANS_DATA.map(t => t.name)], []);
+  const allTechnicianNames = useMemo(() => ['N/A', ...users.filter(u => u.role === Role.Technician).map(t => t.name)], [users]);
   
   const techniciansForFilter = useMemo(() => {
-      const allTechniciansWithOptions = ['Alle', ...allTechnicians];
+      const allTechniciansWithOptions = ['Alle', ...activeTechnicians.map(u => u.name)];
       if (currentUser?.role === Role.Technician) {
-          return allTechniciansWithOptions.filter(name => name !== currentUser.displayName);
+          return allTechniciansWithOptions.filter(name => name !== currentUser.name);
       }
       return allTechniciansWithOptions;
-  }, [allTechnicians, currentUser]);
+  }, [activeTechnicians, currentUser]);
 
+  const ticketsForAreaCounts = useMemo(() => {
+    return tickets.filter(ticket => {
+        if (currentView === 'erledigt') return ticket.status === Status.Abgeschlossen;
+        return ticket.status !== Status.Abgeschlossen;
+    });
+  }, [tickets, currentView]);
+
+  const areaOptionsWithCounts = useMemo(() => {
+    const counts = ticketsForAreaCounts.reduce((acc, ticket) => {
+        acc[ticket.area] = (acc[ticket.area] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const result = activeAreas.map(area => ({ name: area.name, count: counts[area.name] || 0 }));
+    return [{ name: 'Alle', count: ticketsForAreaCounts.length }, ...result];
+  }, [ticketsForAreaCounts, activeAreas]);
 
   const changeView = (view: string) => {
-    if (['dashboard', 'reports'].includes(view) && currentUser?.role !== Role.Admin) {
+    if (['dashboard', 'reports', 'techniker', 'settings'].includes(view) && currentUser?.role !== Role.Admin) {
       alert('Keine Berechtigung, auf diese Seite zuzugreifen.');
       return;
     }
@@ -260,7 +306,6 @@ const App: React.FC = () => {
               console.log('Speichern abgebrochen.', err);
           }
       } else {
-          // Fallback für ältere Browser
           const link = document.createElement("a");
           const url = URL.createObjectURL(blob);
           link.setAttribute("href", url);
@@ -328,21 +373,25 @@ const App: React.FC = () => {
         } catch (err) {
             console.log('Speichern abgebrochen.', err);
         }
-    } else {
-        // Fallback für ältere Browser
-        doc.save(fileName);
-    }
+    } else { doc.save(fileName); }
   };
 
-  const handleLogin = (role: Role, name: string) => {
-    setCurrentUser({ role, displayName: name });
-    if (role === Role.Admin) setCurrentView('dashboard');
-    else if (role === Role.Technician) setCurrentView('tickets');
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    if (user.role === Role.Admin) setCurrentView('dashboard');
+    else if (user.role === Role.Technician) setCurrentView('tickets');
   };
-  const handleLogout = () => setCurrentUser(null);
+  const handleLogout = () => { setCurrentUser(null); setCurrentView('dashboard'); };
+  
+  const handleFilterAndSwitchView = (newFilters: Partial<typeof filters>) => {
+    setFilters(prev => ({
+        ...prev, area: 'Alle', priority: 'Alle', search: '', ...newFilters,
+    }));
+    setCurrentView('tickets');
+  };
 
   if (!currentUser) {
-    return <Portal onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} onUpdateTicket={handleTicketUpdate} areas={allAreas.filter(a => a !== 'Alle')} />;
+    return <Portal onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} onUpdateTicket={handleTicketUpdate} areas={activeAreas.map(a => a.name)} users={users} />;
   }
 
   const isBulkActionsVisible = (currentView === 'tickets' || currentView === 'erledigt') && selectedTicketIds.length > 0;
@@ -353,24 +402,26 @@ const App: React.FC = () => {
         case 'tickets': return <TicketTableView tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicketIds={selectedTicketIds} setSelectedTicketIds={setSelectedTicketIds} selectedTicket={selectedTicket} groupBy={groupBy} />;
         case 'erledigt': return <ErledigtTableView tickets={filteredTickets} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
         case 'reports': return <ReportsView tickets={tickets} />;
+        case 'techniker': return <TechnicianView tickets={tickets} technicians={users.filter(u => u.role === Role.Technician)} onTechnicianSelect={handleFilterAndSwitchView} onFilter={handleFilterAndSwitchView} />;
+        case 'settings': return <SettingsView users={users} setUsers={setUsers} areas={areas} setAreas={setAreas} />;
         default: return <KanbanBoard tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
     }
   }
 
   return (
     <div className="app-layout">
-      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.displayName} tickets={tickets} />
+      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.name} tickets={tickets} onNewTicketClick={() => setIsModalOpen(true)} onExportPDF={handleExportPDF} onExportCSV={handleExportCSV} />
       <main>
-        <Header stats={stats} filters={filters} setFilters={setFilters} onNewTicketClick={() => setIsModalOpen(true)} currentView={currentView} />
+        <Header stats={stats} filters={filters} setFilters={setFilters} currentView={currentView} />
         {isBulkActionsVisible ? (
-             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicians} statuses={Object.values(Status)} onBulkUpdate={handleBulkUpdate} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedTicketIds([])} />
-        ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt') &&
-            <FilterBar filters={filters} setFilters={setFilters} areas={allAreas} technicians={techniciansForFilter} statuses={statusesForFilter} onExportCSV={handleExportCSV} onExportPDF={handleExportPDF} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
+             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={handleBulkUpdate} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedTicketIds([])} />
+        ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt' || currentView === 'techniker') &&
+            <FilterBar filters={filters} setFilters={setFilters} areas={areaOptionsWithCounts} technicians={techniciansForFilter} statuses={statusesForFilter} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
         )}
         {renderCurrentView()}
       </main>
-      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} areas={allAreas.filter(a => a !== 'Alle')} />}
-      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicians} statuses={Object.values(Status)} currentUser={currentUser} />}
+      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} areas={activeAreas.map(a => a.name)} technicians={activeTechnicians} />}
+      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicianNames} statuses={Object.values(Status)} currentUser={currentUser} />}
     </div>
   );
 };

@@ -16,9 +16,22 @@ export enum Role {
   Technician = 'techniker',
 }
 
+export interface User {
+  id: string;
+  name: string;
+  role: Role;
+  password?: string;
+  isActive: boolean;
+}
+
+export interface AppArea {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 export interface Technician {
     name: string;
-    status: 'Verfügbar' | 'Aktiv' | 'Eskaliert';
 }
 
 export type GroupableKey = 'status' | 'technician' | 'priority' | 'area';
@@ -35,7 +48,7 @@ export interface Ticket {
   status: Status;
   technician: string;
   priority: Priority;
-  completionDate?: string; // Datum, an dem das Ticket erledigt wurde
+  completionDate?: string; // Datum, an dem das Ticket abgeschlossen wurde
   wunschTermin?: string; // Optionaler Wunschtermin vom Melder
   photos?: string[]; // Array von Base64-kodierten Bildern
   description?: string;

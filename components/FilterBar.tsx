@@ -2,26 +2,26 @@ import React from 'react';
 import { PRIORITIES } from '../constants';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { RefreshIcon } from './icons/RefreshIcon';
-import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { Role, GroupableKey } from '../types';
-import { DocumentIcon } from './icons/DocumentIcon';
 
 interface FilterBarProps {
     filters: any;
     setFilters: React.Dispatch<React.SetStateAction<any>>;
-    areas: string[];
+    areas: Array<{ name: string; count: number }>;
     technicians: string[];
     statuses: string[];
     groupBy: GroupableKey | 'none';
     setGroupBy: (value: GroupableKey | 'none') => void;
     currentView: string;
-    onExportCSV: () => void;
-    onExportPDF: () => void;
     userRole: Role | null;
 }
 
-const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, technicians, statuses, groupBy, setGroupBy, currentView, onExportCSV, onExportPDF, userRole }) => {
+const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, technicians, statuses, groupBy, setGroupBy, currentView, userRole }) => {
     
+    if (currentView === 'techniker' || currentView === 'reports') {
+        return null;
+    }
+
     const handleFilterChange = (filterName: string, value: string) => {
         setFilters((prev: any) => ({ ...prev, [filterName]: value }));
     }
@@ -45,12 +45,29 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, techn
     
     const getDisplayValue = (val: string) => val === 'N/A' ? 'Nicht zugewiesen' : val;
 
-    const FilterChip: React.FC<{label: string, name: string, options: string[], value: string}> = ({label, name, options, value}) => (
+    const FilterChip: React.FC<{label: string, name: string, options: Array<{ name: string; count: number } | string>, value: string}> = ({label, name, options, value}) => (
         <div className={`custom-select filter-chip ${value !== 'Alle' ? 'active' : ''}`}>
             <span>{label}</span>
             {value !== 'Alle' && <span className="filter-badge">{getDisplayValue(value)}</span>}
             <select value={value} onChange={(e) => handleFilterChange(name, e.target.value)}>
-                {options.map(opt => <option key={opt} value={opt}>{getDisplayValue(opt)}</option>)}
+                {options.map(opt => {
+                    if (typeof opt === 'object' && opt !== null && 'name' in opt) {
+                        // It's an area object
+                        const areaOpt = opt as { name: string; count: number };
+                        return (
+                            <option 
+                                key={areaOpt.name} 
+                                value={areaOpt.name}
+                                style={{ color: areaOpt.count === 0 && areaOpt.name !== 'Alle' ? 'var(--text-muted)' : 'inherit' }}
+                            >
+                                {areaOpt.name === 'Alle' ? `Alle Bereiche (${areaOpt.count})` : `${areaOpt.name} (${areaOpt.count})`}
+                            </option>
+                        );
+                    }
+                    // It's a string for other filters
+                    const strOpt = String(opt);
+                    return <option key={strOpt} value={strOpt}>{getDisplayValue(strOpt)}</option>;
+                })}
             </select>
             <ChevronDownIcon />
         </div>
@@ -149,8 +166,6 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, techn
                 {renderFiltersForView()}
             </div>
             <div className="filter-actions">
-                 <button className="action-btn" onClick={onExportPDF}><DocumentIcon />PDF</button>
-                 <button className="action-btn" onClick={onExportCSV}><DocumentArrowDownIcon />CSV</button>
                 <button className="action-btn" onClick={resetFilters}><RefreshIcon />Zurücksetzen</button>
             </div>
         </div>

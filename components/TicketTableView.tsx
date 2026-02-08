@@ -314,18 +314,6 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     align-items: center;
                     gap: 0.75rem;
                 }
-                .new-note-indicator {
-                    width: 8px;
-                    height: 8px;
-                    background-color: var(--accent-primary);
-                    border-radius: 50%;
-                    animation: pulse 1.5s infinite;
-                }
-                @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
-                    70% { box-shadow: 0 0 0 6px rgba(13, 110, 253, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
-                }
                 .ticket-title {
                     font-weight: 500;
                     color: var(--text-primary);

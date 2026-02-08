@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LayoutDashboardIcon } from './icons/LayoutDashboardIcon';
 import { BuildingOfficeIcon } from './icons/BuildingOfficeIcon';
 import { UserIcon } from './icons/UserIcon';
@@ -10,6 +10,9 @@ import { Avatar } from './Avatar';
 import ThemeToggle from './ThemeToggle';
 import { ChevronsLeftRightIcon } from './icons/ChevronsLeftRightIcon';
 import { Role, Ticket, Status } from '../types';
+import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
+import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 
 interface SidebarProps {
@@ -23,25 +26,29 @@ interface SidebarProps {
     userRole: Role | null;
     userName: string | null;
     tickets: Ticket[];
+    onNewTicketClick: () => void;
+    onExportPDF: () => void;
+    onExportCSV: () => void;
 }
 
-// Central navigation configuration
-const NAV_ITEMS_CONFIG = [
-    { viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
-    { viewName: 'tickets', icon: <BuildingOfficeIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
-    { viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
-    { viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin], disabled: true },
-    { viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
-    { viewName: 'settings', icon: <CogIcon />, label: 'Settings', requiredRoles: [Role.Admin], disabled: true },
-];
 
-
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, setTheme, currentView, setCurrentView, onLogout, userRole, userName, tickets }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, setTheme, currentView, setCurrentView, onLogout, userRole, userName, tickets, onNewTicketClick, onExportPDF, onExportCSV }) => {
     
+    const [isExportOpen, setExportOpen] = useState(false);
     const newNotesCount = useMemo(() => {
         return tickets.filter(t => t.hasNewNoteFromReporter && t.status !== Status.Abgeschlossen).length;
     }, [tickets]);
     
+    const navItems = [
+        { type: 'view', viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
+        { type: 'view', viewName: 'tickets', icon: <BuildingOfficeIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
+        { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
+        { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
+        { type: 'view', viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
+        { type: 'action', action: 'newTicket', icon: <DocumentPlusIcon />, label: 'Neues Ticket', requiredRoles: [Role.Admin, Role.Technician], onClick: onNewTicketClick },
+        { type: 'view', viewName: 'settings', icon: <CogIcon />, label: 'Settings', requiredRoles: [Role.Admin] },
+    ];
+
     const NavItem: React.FC<{viewName: string, icon: React.ReactNode, label: string}> = ({ viewName, icon, label }) => (
         <button 
             className={`nav-item ${currentView === viewName ? 'active' : ''}`}
@@ -129,10 +136,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
                     width: 32px;
                     height: 32px;
                 }
-
+                
                 .nav-menu {
                     flex-grow: 1;
-                    overflow: hidden;
+                    overflow-y: auto; /* Allow vertical scroll if needed */
+                    overflow-x: hidden; /* Prevent horizontal scroll */
+                    margin-top: 1.5rem;
+                }
+                .sidebar.collapsed .nav-menu {
+                    overflow: visible; /* Allow popovers to show */
                 }
                 .nav-item {
                     display: flex;
@@ -250,6 +262,67 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
                     visibility: visible;
                 }
 
+                .nav-item-dropdown-container { 
+                    margin: 0.5rem 0; 
+                    position: relative;
+                }
+                .dropdown-chevron { margin-left: auto; transition: transform 0.2s ease; }
+                .sidebar.collapsed .dropdown-chevron { display: none; }
+                .dropdown-chevron.open { transform: rotate(180deg); }
+                
+                .sidebar:not(.collapsed) .dropdown-menu {
+                    padding-left: 3.5rem;
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease-out;
+                }
+                .sidebar:not(.collapsed) .dropdown-menu.open {
+                    max-height: 200px;
+                }
+
+                /* Collapsed popover override */
+                .sidebar.collapsed .dropdown-menu {
+                    position: absolute;
+                    left: calc(100% + 8px);
+                    top: 0;
+                    background: var(--bg-secondary);
+                    border-radius: var(--radius-md);
+                    box-shadow: var(--shadow-md);
+                    padding: 0.5rem;
+                    width: max-content;
+                    z-index: 20;
+                    border: 1px solid var(--border);
+                    opacity: 0;
+                    visibility: hidden;
+                    transform: scale(0.95);
+                    transform-origin: left center;
+                    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+                    pointer-events: none;
+                    max-height: none;
+                    padding-left: 0.5rem;
+                    overflow: visible;
+                }
+                .sidebar.collapsed .dropdown-menu.open {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: scale(1);
+                    pointer-events: auto;
+                }
+                .sidebar.collapsed .dropdown-menu .dropdown-item {
+                    padding: 0.6rem 1rem;
+                }
+
+                .dropdown-item {
+                    background: none; border: none; color: var(--text-secondary);
+                    padding: 0.6rem 0.8rem; width: 100%; text-align: left;
+                    cursor: pointer; font-size: 0.9rem; font-weight: 500;
+                    border-radius: var(--radius-sm); transition: background-color 0.2s ease, color 0.2s ease;
+                }
+                .dropdown-item:hover {
+                    color: var(--text-primary);
+                    background-color: var(--bg-tertiary);
+                }
+
 
                 .sidebar-footer {
                     padding-top: 1.5rem;
@@ -285,7 +358,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
             <div className="sidebar-header">
                 <div className="sidebar-logo-container">
                     <img 
-                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgAg-3-U3g2-q-P6AAAAAElFTkSuQmCC"
+                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-3U3g2-q-P6AAAAAElFTkSuQmCC"
                         alt="DRK Logo"
                         className="sidebar-logo"
                     />
@@ -300,17 +373,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
                 </button>
             </div>
             <nav className="nav-menu">
-                {NAV_ITEMS_CONFIG.map(item => {
-                    if (userRole && item.requiredRoles.includes(userRole)) {
-                        if (item.disabled) {
-                            return (
-                                <DisabledNavItem 
-                                    key={item.viewName}
-                                    icon={item.icon}
-                                    label={item.label}
-                                />
-                            );
-                        }
+                {navItems.map(item => {
+                    if (!userRole || !item.requiredRoles.includes(userRole)) {
+                        return null;
+                    }
+
+                    if (item.type === 'action') {
+                        return (
+                             <button 
+                                key={item.action}
+                                className="nav-item"
+                                onClick={item.onClick}
+                                title={isCollapsed ? item.label : ''}
+                            >
+                                {item.icon}
+                                <span className="nav-label">{item.label}</span>
+                                <span className="nav-tooltip">{item.label}</span>
+                            </button>
+                        );
+                    }
+
+                    if (item.type === 'view') {
                         return (
                             <NavItem
                                 key={item.viewName}
@@ -322,6 +405,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
                     }
                     return null;
                 })}
+                <div className="nav-item-dropdown-container">
+                    <button 
+                        className={`nav-item ${isExportOpen ? 'active' : ''}`}
+                        onClick={() => setExportOpen(!isExportOpen)}
+                        title={isCollapsed ? "Exportieren" : ''}
+                    >
+                        <DocumentArrowDownIcon />
+                        <span className="nav-label">Exportieren</span>
+                        <ChevronDownIcon className={`dropdown-chevron ${isExportOpen ? 'open' : ''}`} />
+                        <span className="nav-tooltip">Exportieren</span>
+                    </button>
+                    <div className={`dropdown-menu ${isExportOpen ? 'open' : ''}`}>
+                        <button className="dropdown-item" onClick={onExportPDF}>als PDF</button>
+                        <button className="dropdown-item" onClick={onExportCSV}>als CSV</button>
+                    </div>
+                </div>
             </nav>
             <div className="sidebar-footer">
                 <div style={{ marginBottom: '1rem' }}>

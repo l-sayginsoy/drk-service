@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Ticket, Priority, Role } from '../types';
+import { Ticket, Priority, Role, User } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { UserIcon } from './icons/UserIcon';
 import { CogIcon } from './icons/CogIcon';
+// FIX: Correctly import TECHNICIANS_DATA
 import { TECHNICIANS_DATA } from '../constants';
 import { CameraIcon } from './icons/CameraIcon';
 import { XIcon } from './icons/XIcon';
@@ -15,11 +16,12 @@ const DRAFT_STORAGE_KEY = 'facility-management-ticket-draft';
 type PortalView = 'menu' | 'erfassen' | 'pruefen' | 'status-result' | 'success' | 'techniker-login' | 'admin-login';
 
 interface PortalProps {
-  onLogin: (role: Role, name: string) => void;
+  onLogin: (user: User) => void;
   tickets: Ticket[];
   areas: string[];
   onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
   onUpdateTicket: (ticket: Ticket) => void;
+  users: User[];
 }
 
 const formatNote = (note: string) => {
@@ -184,6 +186,7 @@ const NewTicketForm: React.FC<{
             <div className="portal-header condensed">
                 <button className="back-btn" onClick={() => setView('menu')}><ArrowLeftIcon /></button>
                 <h2 className="portal-subtitle">Ticket erstellen</h2>
+                <div className="header-spacer" />
             </div>
             <div className="portal-form mobile-form">
                 <div className="form-group">
@@ -264,7 +267,7 @@ const NewTicketForm: React.FC<{
 };
 
 
-const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, onUpdateTicket }) => {
+const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, onUpdateTicket, users }) => {
   const [view, setView] = useState<PortalView>('menu');
   const [ticketIdInput, setTicketIdInput] = useState('');
   const [foundTicket, setFoundTicket] = useState<Ticket | null>(null);
@@ -272,6 +275,8 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
   const [newlyCreatedTicketId, setNewlyCreatedTicketId] = useState<string | null>(null);
   const [newNote, setNewNote] = useState('');
   const [noteAdded, setNoteAdded] = useState(false);
+  const [loginAttempt, setLoginAttempt] = useState({ name: '', password: '' });
+  const [loginError, setLoginError] = useState('');
 
   const handleTicketPruefen = (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,8 +301,26 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
     setView('status-result');
   };
 
+  const handleTechnicianLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoginError('');
+      const user = users.find(u => u.name === loginAttempt.name && u.role === Role.Technician && u.isActive);
+      if (user) {
+          onLogin(user);
+      } else {
+          setLoginError('Anmeldedaten sind ungültig oder Konto inaktiv.');
+      }
+  };
+
   const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault(); onLogin(Role.Admin, 'Admin');
+      e.preventDefault();
+      setLoginError('');
+      const user = users.find(u => u.name === loginAttempt.name && u.role === Role.Admin);
+      if (user) {
+          onLogin(user);
+      } else {
+          setLoginError('Anmeldedaten sind ungültig.');
+      }
   };
   
   const handleAddNewNote = () => {
@@ -334,6 +357,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
             <div className="portal-header condensed">
                 <button type="button" className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
                 <h2 className="portal-subtitle">Status prüfen</h2>
+                <div className="header-spacer" />
             </div>
             <div className="portal-form centered-form">
                 <label>Bitte geben Sie Ihre Ticket-ID ein</label>
@@ -344,19 +368,34 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
         );
        case 'techniker-login':
         return (
-            <>
+            <form onSubmit={handleTechnicianLogin}>
                 <div className="portal-header condensed">
                     <button className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
                     <h2 className="portal-subtitle">Anmeldung Haustechnik</h2>
+                    <div className="header-spacer" />
+                </div>
+                <div className="portal-form">
+                     <div className="form-group">
+                        <label>Techniker</label>
+                        <select value={loginAttempt.name} onChange={e => { setLoginAttempt(p => ({...p, name: e.target.value})); setLoginError(''); }}>
+                            <option value="" disabled>Namen auswählen</option>
+                            {TECHNICIANS_DATA.filter(t => t.isActive).map(tech => (
+                                <option key={tech.id} value={tech.name}>
+                                    {tech.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Passwort</label>
+                        <input type="password" value={loginAttempt.password} onChange={e => { setLoginAttempt(p => ({...p, password: e.target.value})); setLoginError(''); }}/>
+                    </div>
+                    {loginError && <p className="error-text" style={{textAlign: 'center'}}>{loginError}</p>}
                 </div>
                 <div className="portal-actions">
-                    {TECHNICIANS_DATA.map(tech => (
-                        <button key={tech.name} className="portal-btn btn-secondary" onClick={() => onLogin(Role.Technician, tech.name)}>
-                            {tech.name}
-                        </button>
-                    ))}
+                   <button type="submit" className="portal-btn btn-primary">Anmelden</button>
                 </div>
-            </>
+            </form>
         );
        case 'admin-login':
         return (
@@ -364,9 +403,25 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 <div className="portal-header condensed">
                     <button type="button" className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
                     <h2 className="portal-subtitle">Admin Anmeldung</h2>
+                    <div className="header-spacer" />
+                </div>
+                 <div className="portal-form">
+                     <div className="form-group">
+                        <label>Benutzername</label>
+                        <input type="text" value={loginAttempt.name} onChange={e => { setLoginAttempt(p => ({...p, name: e.target.value})); setLoginError(''); }}/>
+                    </div>
+                    <div className="form-group">
+                        <label>Passwort</label>
+                        <input type="password" value={loginAttempt.password} onChange={e => { setLoginAttempt(p => ({...p, password: e.target.value})); setLoginError(''); }}/>
+                    </div>
+                     {loginError && <p className="error-text" style={{textAlign: 'center'}}>{loginError}</p>}
+                    <div className="login-hint">
+                        <p><strong>Demo-Anmeldung:</strong></p>
+                        <p>Benutzer: <strong>Admin</strong> / Passwort: <strong>admin</strong></p>
+                    </div>
                 </div>
                 <div className="portal-actions">
-                    <button type="submit" className="portal-btn btn-primary">Als Admin fortfahren</button>
+                    <button type="submit" className="portal-btn btn-primary">Anmelden</button>
                 </div>
             </form>
         );
@@ -376,6 +431,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 <div className="portal-header condensed">
                    <button className="back-btn" onClick={() => setView('pruefen')}><ArrowLeftIcon /></button>
                    <h2 className="portal-subtitle">Ticket-Status</h2>
+                   <div className="header-spacer" />
                 </div>
                 {searchError ? (
                     <p className="search-result-text error">{searchError}</p>
@@ -400,13 +456,13 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                   <div className="note-add-section">
                     <label>Neue Notiz hinzufügen</label>
                     <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Schreiben Sie hier eine Nachricht an die Haustechnik..."></textarea>
-                    <button className="portal-btn btn-secondary" onClick={handleAddNewNote} disabled={!newNote.trim()}>Nachricht senden</button>
+                    <button className="portal-btn btn-primary" onClick={handleAddNewNote} disabled={!newNote.trim()}>Nachricht senden</button>
                     {noteAdded && <p className="note-added-success">Notiz erfolgreich hinzugefügt!</p>}
                   </div>
                   </>
                 )}
                  <div className="portal-actions">
-                    <button className="portal-btn btn-primary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
+                    <button className="portal-btn btn-secondary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
                 </div>
             </>
         );
@@ -429,8 +485,8 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
         return (
              <>
                 <div className="portal-header">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC-3-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
-                    <h1 className="portal-title">Haustechnik Portal</h1>
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
+                    <h1 className="portal-title">Haustechnik Service</h1>
                     <p className="portal-subtitle-org">DRK Kreisverband Vorderpfalz e. V.</p>
                 </div>
                 <div className="portal-menu">
@@ -454,9 +510,10 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 .portal-box.view-pruefen form { display: flex; flex-direction: column; flex-grow: 1; }
                 .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
                 .portal-logo { max-width: 250px; height: auto; margin-bottom: 2rem; }
-                .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
-                .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; margin-right: 1rem; }
+                .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; }
+                .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; z-index: 1; }
                 .back-btn:hover { color: var(--text-primary); }
+                .header-spacer { padding: 0.5rem; width: 24px; visibility: hidden; z-index: 1; }
                 .portal-title { font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.5rem; }
                 .portal-subtitle-org { font-size: 1.1rem; font-weight: 500; color: var(--text-secondary); }
                 .portal-menu { padding: 0 2rem 2.5rem; display: flex; flex-direction: column; gap: 1rem; }
@@ -480,7 +537,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 .btn-primary:disabled { background-color: var(--border-active); border-color: var(--border-active); cursor: not-allowed; }
                 .btn-secondary { background-color: var(--bg-tertiary); border-color: var(--border); color: var(--text-secondary); }
                 .btn-secondary:hover { background-color: var(--border); color: var(--text-primary); }
-                .portal-subtitle { font-size: 1.25rem; font-weight: 600; text-align: center; flex-grow: 1; }
+                .portal-subtitle { font-size: 1.25rem; font-weight: 600; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max-content; }
                 .portal-form { padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 1.25rem; }
                 .portal-form.centered-form { flex-grow: 1; justify-content: center; align-items: center; gap: 1rem; text-align: center; }
                 .portal-form.centered-form input { max-width: 300px; text-align: center; font-size: 1.1rem; }
@@ -516,6 +573,18 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 .note-add-section label { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
                 .note-add-section textarea { min-height: 80px; resize: vertical; }
                 .note-added-success { color: var(--accent-success); font-size: 0.9rem; text-align: center; margin-top: 0.5rem; font-weight: 500; }
+                .login-hint {
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                    text-align: center;
+                    padding: 0.75rem;
+                    background: var(--bg-primary);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-md);
+                    margin-top: 0.5rem;
+                    line-height: 1.5;
+                }
+                .login-hint p { margin: 0; }
             `}</style>
             <div className={`portal-box view-${view}`}>
                 {renderContent()}

@@ -176,7 +176,7 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
                     <SortableHeader sortKey="priority">Priorität</SortableHeader>
                     <SortableHeader sortKey="entryDate">Eingang</SortableHeader>
                     <SortableHeader sortKey="dueDate">Fällig bis</SortableHeader>
-                    <SortableHeader sortKey="completionDate">Erledigt am</SortableHeader>
+                    <SortableHeader sortKey="completionDate">Abgeschlossen am</SortableHeader>
                   </tr>
                 </thead>
                 <tbody>
@@ -197,7 +197,7 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
                   )) : (
                      <tr>
                         <td colSpan={8} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
-                            Keine erledigten Tickets gefunden.
+                            Keine abgeschlossenen Tickets gefunden.
                         </td>
                      </tr>
                   )}
