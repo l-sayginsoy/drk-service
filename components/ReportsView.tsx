@@ -143,7 +143,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             return acc;
         }, {} as Record<string, number>);
         
-        // FIX: Explicitly type the accumulator in the reduce function to prevent TypeScript from inferring it as `any` or `unknown`, which causes property access errors.
+// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
         const areaStats = filteredTickets.reduce((acc: Record<string, { total: number; overdue: number }>, ticket) => {
             if (!acc[ticket.area]) {
                 acc[ticket.area] = { total: 0, overdue: 0 };
@@ -167,14 +167,13 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             return acc;
         }, {} as Record<string, number>);
 
-        // FIX: Explicitly type the accumulator in the reduce function to resolve property access errors on `acc[tech]`. This ensures TypeScript correctly infers the object shape.
+// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
         const technicianStats = filteredTickets.reduce((acc: Record<string, { totalActive: number; overdue: number; label: string }>, ticket) => {
             const tech = ticket.technician;
             if (tech && tech !== 'N/A') {
                 if (!acc[tech]) {
                     acc[tech] = { totalActive: 0, overdue: 0, label: tech };
                 }
-                // FIX: Count all non-completed tickets as active
                 if (ticket.status !== Status.Abgeschlossen) {
                     acc[tech].totalActive++;
                      if (ticket.status === Status.Ueberfaellig) {
@@ -188,7 +187,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const ticketsByTechnicianData = Object.values(technicianStats)
             .sort((a, b) => b.totalActive - a.totalActive);
         
-        // FIX: Explicitly type the accumulator in the reduce function. This helps TypeScript understand the structure of `acc` and prevents errors when accessing properties like `count` and `totalResolutionDays`.
+// FIX: Provide a type for the initial value of the reduce accumulator to avoid errors accessing properties on 'unknown'.
         const completedByTechnicianRaw = filteredTickets
             .filter(t => t.status === Status.Abgeschlossen && t.technician && t.technician !== 'N/A')
             .reduce((acc: Record<string, { count: number; totalResolutionDays: number }>, ticket) => {
@@ -224,7 +223,6 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             completedTickets,
             ticketsByArea: Object.entries(ticketsByAreaRaw).map(([label, value]) => ({ label, value })).sort((a,b) => b.value - a.value),
             overdueRateByArea,
-            // FIX: Added a fallback value (`|| 99`) to the sort comparison. This prevents a "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type" error if a label doesn't exist in the `order` object, ensuring the operation is always on numbers.
             ticketsByPriority: Object.entries(ticketsByPriority).map(([label, value]) => ({ label, value })).sort((a,b) => {
                 const order = { [Priority.Hoch]: 1, [Priority.Mittel]: 2, [Priority.Niedrig]: 3 };
                 return (order[a.label as Priority] || 99) - (order[b.label as Priority] || 99);

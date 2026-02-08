@@ -173,6 +173,16 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 .card-location span { font-weight: normal; color: var(--text-muted); }
                 .card-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; }
                 
+                .new-note-indicator.card-indicator {
+                    width: 10px;
+                    height: 10px;
+                    background-color: var(--accent-primary);
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                    margin-top: 0.5rem;
+                    animation: pulse 1.5s infinite;
+                }
+                
                 .card-actions-grid {
                     display: grid;
                     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -256,6 +266,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
             
             <div className="card-header">
                 <h3 className="card-title">{ticket.title}</h3>
+                {ticket.hasNewNoteFromReporter && <span className="new-note-indicator card-indicator" title="Neue Notiz vom Melder"></span>}
             </div>
             <p className="card-location">{ticket.area} <span>›</span> {ticket.location}</p>
             <p className="card-meta">Gemeldet: {ticket.reporter}</p>

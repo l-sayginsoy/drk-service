@@ -16,6 +16,18 @@ interface TicketTableViewProps {
 
 type SortableKeys = keyof Ticket | 'entryDate' | 'dueDate';
 
+interface FlatTickets {
+  type: 'flat';
+  data: Ticket[];
+}
+
+interface GroupedTickets {
+  type: 'grouped';
+  data: [string, Ticket[]][];
+}
+
+type ProcessedTickets = FlatTickets | GroupedTickets;
+
 const StatusPill: React.FC<{ status: Status }> = ({ status }) => (
     <span 
         className="status-pill"
@@ -70,7 +82,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
         }
     }, [selectedTicketIds, tickets]);
 
-    const processedTickets = useMemo(() => {
+    const processedTickets: ProcessedTickets = useMemo(() => {
         let sortableItems = [...tickets];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
@@ -171,7 +183,12 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
             <td className="checkbox-cell" onClick={e => e.stopPropagation()}>
                <input type="checkbox" checked={selectedTicketIds.includes(ticket.id)} onChange={e => handleSelectOne(e, ticket.id)} />
             </td>
-            <td>{ticket.id}</td>
+            <td>
+              <div className="ticket-id-cell">
+                {ticket.id}
+                {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
+              </div>
+            </td>
             <td>
                 <div className="ticket-title">{ticket.title}</div>
                 <small style={{color: 'var(--text-muted)'}}>{ticket.location}</small>
@@ -193,28 +210,36 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
          </tr>
     );
 
-    // FIX: Extracted table body rendering into a helper function to resolve complex TypeScript type inference issues with discriminated unions inside JSX.
     const renderTableBody = () => {
-        if (processedTickets.type === 'flat') {
-          if (processedTickets.data.length === 0) {
-            return noTicketsRow;
-          }
-          return processedTickets.data.map(renderTicketRow);
-        } else {
-          if (processedTickets.data.length === 0) {
-            return noTicketsRow;
-          }
-          return processedTickets.data.flatMap(([groupName, groupTickets]) => [
-                <tr key={`header-${groupName}`} className="group-header">
-                  <td colSpan={9}>
-                    <div className="group-header-content">
-                      {getGroupHeaderLabel(groupBy as GroupableKey, groupName)}
-                      <span className="group-count">{groupTickets.length} Ticket{groupTickets.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  </td>
-                </tr>,
-                ...groupTickets.map(renderTicketRow)
-              ]);
+        switch (processedTickets.type) {
+            case 'flat': {
+                const ticketsData = processedTickets.data;
+                if (ticketsData.length === 0) {
+                    return <tbody>{noTicketsRow}</tbody>;
+                }
+                return <tbody>{ticketsData.map(renderTicketRow)}</tbody>;
+            }
+            case 'grouped': {
+                const groupedData = processedTickets.data;
+                if (groupedData.length === 0) {
+                    return <tbody>{noTicketsRow}</tbody>;
+                }
+                return (
+                    <tbody>
+                        {groupedData.flatMap(([groupName, groupTickets]) => [
+                            <tr key={`header-${groupName}`} className="group-header">
+                                <td colSpan={9}>
+                                    <div className="group-header-content">
+                                        {getGroupHeaderLabel(groupBy as GroupableKey, groupName)}
+                                        <span className="group-count">{groupTickets.length} Ticket{groupTickets.length !== 1 ? 's' : ''}</span>
+                                    </div>
+                                </td>
+                            </tr>,
+                            ...groupTickets.map(renderTicketRow)
+                        ])}
+                    </tbody>
+                );
+            }
         }
     };
 
@@ -283,6 +308,23 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 }
                 .ticket-table tbody tr:not(.selected):hover {
                   background-color: var(--bg-tertiary);
+                }
+                .ticket-id-cell {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+                .new-note-indicator {
+                    width: 8px;
+                    height: 8px;
+                    background-color: var(--accent-primary);
+                    border-radius: 50%;
+                    animation: pulse 1.5s infinite;
+                }
+                @keyframes pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+                    70% { box-shadow: 0 0 0 6px rgba(13, 110, 253, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
                 }
                 .ticket-title {
                     font-weight: 500;
@@ -395,9 +437,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     <SortableHeader sortKey="dueDate">Fällig bis</SortableHeader>
                   </tr>
                 </thead>
-                <tbody>
-                  {renderTableBody()}
-                </tbody>
+                {renderTableBody()}
             </table>
         </div>
     );

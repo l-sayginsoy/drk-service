@@ -40,4 +40,6 @@ export interface Ticket {
   photos?: string[]; // Array von Base64-kodierten Bildern
   description?: string;
   notes?: string[];
+  reporterEmail?: string; // Optional: E-Mail des Melders für Benachrichtigungen
+  hasNewNoteFromReporter?: boolean; // Optional: Flag für neue Notizen vom Melder
 }

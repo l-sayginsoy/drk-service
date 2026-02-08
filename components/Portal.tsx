@@ -19,6 +19,7 @@ interface PortalProps {
   tickets: Ticket[];
   areas: string[];
   onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
+  onUpdateTicket: (ticket: Ticket) => void;
 }
 
 const formatNote = (note: string) => {
@@ -94,7 +95,7 @@ const NewTicketForm: React.FC<{
         return {
             reporter: '', area: areas[0] || '', location: '', title: '',
             priority: Priority.Mittel, description: '', wunschTermin: '',
-            photos: [] as string[]
+            reporterEmail: '', photos: [] as string[]
         };
     });
 
@@ -122,6 +123,10 @@ const NewTicketForm: React.FC<{
         if (!formState.description.trim()) newErrors.description = 'Beschreibung ist ein Pflichtfeld.';
         if (photoRules.mode === 'required' && formState.photos.length === 0) newErrors.photos = 'Ein Foto ist erforderlich.';
         if (formState.reporter.trim().length < 2) newErrors.reporter = 'Name muss mindestens 2 Zeichen lang sein.';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (formState.reporterEmail && !emailRegex.test(formState.reporterEmail)) {
+            newErrors.reporterEmail = 'Bitte geben Sie eine gültige E-Mail-Adresse ein.';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -166,6 +171,7 @@ const NewTicketForm: React.FC<{
             reporter: formState.reporter, dueDate: formattedDueDate, technician: 'N/A',
             priority: formState.priority, description: formState.description,
             wunschTermin: formattedWunschTermin, photos: formState.photos, notes: [],
+            reporterEmail: formState.reporterEmail,
         });
 
         setNewlyCreatedTicketId(newTicketId);
@@ -241,6 +247,11 @@ const NewTicketForm: React.FC<{
                     {errors.reporter && <span className="error-text">{errors.reporter}</span>}
                 </div>
                  <div className="form-group">
+                    <label>Ihre E-Mail-Adresse (Optional)</label>
+                    <input type="email" placeholder="fuer-status-updates@email.de" value={formState.reporterEmail} onChange={e => setFormState(p => ({...p, reporterEmail: e.target.value}))} />
+                    {errors.reporterEmail && <span className="error-text">{errors.reporterEmail}</span>}
+                </div>
+                 <div className="form-group">
                     <label>Wunsch-Termin (Optional)</label>
                     <input type="date" value={formState.wunschTermin} onChange={e => setFormState(p => ({...p, wunschTermin: e.target.value}))} />
                 </div>
@@ -253,38 +264,61 @@ const NewTicketForm: React.FC<{
 };
 
 
-const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket }) => {
+const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, onUpdateTicket }) => {
   const [view, setView] = useState<PortalView>('menu');
   const [ticketIdInput, setTicketIdInput] = useState('');
   const [foundTicket, setFoundTicket] = useState<Ticket | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [newlyCreatedTicketId, setNewlyCreatedTicketId] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState('');
+  const [noteAdded, setNoteAdded] = useState(false);
 
   const handleTicketPruefen = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchError(null);
     setFoundTicket(null);
-    let currentTickets: Ticket[] = [];
-    try {
-        const savedTickets = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (savedTickets) currentTickets = JSON.parse(savedTickets);
-    } catch (error) { console.error("Could not load tickets in portal.", error); }
-
+    setNoteAdded(false);
+    
     const trimmedId = ticketIdInput.trim().toUpperCase();
     if (!trimmedId) {
         setSearchError('Bitte geben Sie eine Ticket-ID ein.');
         setView('status-result');
         return;
     }
-    const ticket = currentTickets.find(t => t.id.toUpperCase() === trimmedId);
-    if (ticket) setFoundTicket(ticket);
-    else setSearchError(`Ticket mit der ID "${trimmedId}" wurde nicht gefunden.`);
+
+    const ticket = tickets.find(t => t.id.toUpperCase() === trimmedId);
+    
+    if (ticket) {
+      setFoundTicket(ticket);
+    } else {
+      setSearchError(`Ticket mit der ID "${trimmedId}" wurde nicht gefunden.`);
+    }
     setView('status-result');
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault(); onLogin(Role.Admin, 'Admin');
   };
+  
+  const handleAddNewNote = () => {
+    if (!newNote.trim() || !foundTicket) return;
+
+    const date = new Date();
+    const formattedDate = date.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    const formattedTime = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    
+    const noteTextWithMeta = `${newNote.trim()} (Melder am ${formattedDate}, ${formattedTime})`;
+
+    const updatedNotes = [...(foundTicket.notes || []), noteTextWithMeta];
+    const updatedTicket = { ...foundTicket, notes: updatedNotes, hasNewNoteFromReporter: true };
+    
+    onUpdateTicket(updatedTicket);
+    setFoundTicket(updatedTicket); // Update local state to show new note immediately
+    setNewNote('');
+    setNoteAdded(true);
+    setTimeout(() => setNoteAdded(false), 3000); // Hide message after 3 seconds
+  };
+
 
   const resetAndGoToMenu = () => {
       setTicketIdInput(''); setFoundTicket(null); setSearchError(null); setNewlyCreatedTicketId(null); setView('menu');
@@ -301,12 +335,10 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
                 <button type="button" className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
                 <h2 className="portal-subtitle">Status prüfen</h2>
             </div>
-            <div className="portal-form">
+            <div className="portal-form centered-form">
                 <label>Bitte geben Sie Ihre Ticket-ID ein</label>
-                <input type="text" placeholder="M-12345" value={ticketIdInput} onChange={e => setTicketIdInput(e.target.value)} />
-            </div>
-            <div className="portal-actions">
-              <button type="submit" className="portal-btn btn-primary">Status prüfen</button>
+                <input type="text" placeholder="M-..." value={ticketIdInput} onChange={e => setTicketIdInput(e.target.value)} />
+                 <button type="submit" className="portal-btn btn-primary">Status prüfen</button>
             </div>
           </form>
         );
@@ -348,20 +380,30 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
                 {searchError ? (
                     <p className="search-result-text error">{searchError}</p>
                 ) : foundTicket && (
+                  <>
                   <div className="status-result-box">
                     <div className="status-result-id">{foundTicket.id}</div>
                     <div className="status-details-box">
-                        <div className="status-detail-item"><strong>Status:</strong> <span>{foundTicket.status}</span></div>
-                        <div className="status-detail-item"><strong>Betreff:</strong> <span>{foundTicket.title}</span></div>
-                        <div className="status-detail-item"><strong>Techniker:</strong> <span>{foundTicket.technician === 'N/A' ? 'Noch nicht zugewiesen' : foundTicket.technician}</span></div>
+                        <div className="status-detail-item"><strong>Status:</strong> <span className="status-detail-value">{foundTicket.status}</span></div>
+                        <div className="status-detail-item"><strong>Betreff:</strong> <span className="status-detail-value">{foundTicket.title}</span></div>
+                        <div className="status-detail-item"><strong>Techniker:</strong> <span className="status-detail-value">{foundTicket.technician === 'N/A' ? 'Noch nicht zugewiesen' : foundTicket.technician}</span></div>
                         <div className="portal-notes-container">
-                            <p className="notes-title"><strong>Letzte Notiz:</strong></p>
+                            <p className="notes-title"><strong>Letzte Notizen:</strong></p>
                             {foundTicket.notes && foundTicket.notes.length > 0 ? (
-                                <div className="portal-note-item">{formatNote(foundTicket.notes[foundTicket.notes.length - 1])}</div>
+                                [...foundTicket.notes].reverse().slice(0, 3).map((note, index) => (
+                                     <div className="portal-note-item" key={index}>{formatNote(note)}</div>
+                                ))
                             ) : <span className="no-notes">Keine Notizen vorhanden.</span>}
                         </div>
                     </div>
                   </div>
+                  <div className="note-add-section">
+                    <label>Neue Notiz hinzufügen</label>
+                    <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Schreiben Sie hier eine Nachricht an die Haustechnik..."></textarea>
+                    <button className="portal-btn btn-secondary" onClick={handleAddNewNote} disabled={!newNote.trim()}>Nachricht senden</button>
+                    {noteAdded && <p className="note-added-success">Notiz erfolgreich hinzugefügt!</p>}
+                  </div>
+                  </>
                 )}
                  <div className="portal-actions">
                     <button className="portal-btn btn-primary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
@@ -387,7 +429,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
         return (
              <>
                 <div className="portal-header">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-3-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC-3-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
                     <h1 className="portal-title">Haustechnik Portal</h1>
                     <p className="portal-subtitle-org">DRK Kreisverband Vorderpfalz e. V.</p>
                 </div>
@@ -408,6 +450,8 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
                 :root { --portal-max-width: 550px; }
                 .portal-container { width: 100%; min-height: 100vh; display: flex; justify-content: center; align-items: center; background-color: var(--bg-primary); font-family: 'Geist', sans-serif; color: var(--text-primary); padding: 2rem 1rem; }
                 .portal-box { width: 100%; max-width: var(--portal-max-width); background: var(--bg-secondary); border-radius: 12px; box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; }
+                .portal-box.view-pruefen { max-width: 450px; }
+                .portal-box.view-pruefen form { display: flex; flex-direction: column; flex-grow: 1; }
                 .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
                 .portal-logo { max-width: 250px; height: auto; margin-bottom: 2rem; }
                 .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
@@ -438,10 +482,12 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
                 .btn-secondary:hover { background-color: var(--border); color: var(--text-primary); }
                 .portal-subtitle { font-size: 1.25rem; font-weight: 600; text-align: center; flex-grow: 1; }
                 .portal-form { padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 1.25rem; }
+                .portal-form.centered-form { flex-grow: 1; justify-content: center; align-items: center; gap: 1rem; text-align: center; }
+                .portal-form.centered-form input { max-width: 300px; text-align: center; font-size: 1.1rem; }
                 .form-group { display: flex; flex-direction: column; }
                 .form-group label { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; }
-                .portal-form input, .portal-form select, .portal-form textarea { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); font-size: 1rem; color: var(--text-primary); transition: var(--transition-smooth); }
-                .portal-form input:focus, .portal-form select:focus, .portal-form textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
+                .portal-form input, .portal-form select, .portal-form textarea, .note-add-section textarea { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); font-size: 1rem; color: var(--text-primary); transition: var(--transition-smooth); }
+                .portal-form input:focus, .portal-form select:focus, .portal-form textarea:focus, .note-add-section textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
                 .error-text { color: var(--accent-danger); font-size: 0.8rem; margin-top: 0.25rem; }
                 .info-text { font-size: 0.8rem; margin-top: 0.25rem; color: var(--text-muted); }
                 .info-text.required { color: var(--accent-danger); font-weight: 500; }
@@ -456,14 +502,22 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket })
                 .status-result-box { padding: 1rem; }
                 .status-result-id { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 1rem; font-size: 1.25rem; font-weight: 600; text-align: center; margin-bottom: 1.5rem; color: var(--accent-primary); }
                 .status-details-box { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
-                .status-detail-item { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
-                .portal-notes-container { margin-top: 1rem; } .notes-title { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; }
-                .portal-note-item { background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; }
+                .status-detail-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; gap: 1rem; }
+                .status-detail-item:last-child { border-bottom: none; }
+                .status-detail-item strong { color: var(--text-secondary); font-weight: 500; }
+                .status-detail-value { color: var(--text-primary); font-weight: 500; text-align: right; }
+                .portal-notes-container { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+                .notes-title { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; }
+                .portal-note-item { background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 0.5rem; }
                 .note-meta { display: block; text-align: right; font-size: 0.8em; font-style: italic; color: var(--text-muted); margin-top: 0.5rem; }
                 .success-message { text-align: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
                 .success-ticket-id { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px; margin: 1rem auto; display: inline-block; border: 1px solid var(--border); }
+                .note-add-section { padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--border); }
+                .note-add-section label { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+                .note-add-section textarea { min-height: 80px; resize: vertical; }
+                .note-added-success { color: var(--accent-success); font-size: 0.9rem; text-align: center; margin-top: 0.5rem; font-weight: 500; }
             `}</style>
-            <div className="portal-box">
+            <div className={`portal-box view-${view}`}>
                 {renderContent()}
             </div>
         </div>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Ticket, Status, Priority } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Ticket, Status, Priority, Role } from '../types';
 import { XIcon } from './icons/XIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { statusColorMap, statusBgColorMap } from '../constants';
@@ -25,7 +25,7 @@ const formatNote = (note: string) => {
 };
 
 const formatTechnicianName = (name: string) => {
-    if (name === 'N/A') return 'Nicht zugewiesen';
+    if (name === 'N/A') return 'Zuweisen';
     const parts = name.split(' ');
     if (parts.length > 1) {
         return `${parts[0][0]}. ${parts[parts.length - 1]}`;
@@ -39,10 +39,21 @@ interface TicketDetailSidebarProps {
   onUpdateTicket: (ticket: Ticket) => void;
   technicians: string[];
   statuses: Status[];
+  currentUser: { displayName: string; role: Role } | null;
 }
 
-const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClose, onUpdateTicket, technicians, statuses }) => {
+const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClose, onUpdateTicket, technicians, statuses, currentUser }) => {
     const [newNote, setNewNote] = useState('');
+
+    useEffect(() => {
+        // Mark note as read when opening details
+        if (ticket.hasNewNoteFromReporter) {
+            const timer = setTimeout(() => {
+                onUpdateTicket({ ...ticket, hasNewNoteFromReporter: false });
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [ticket, onUpdateTicket]);
 
     const toInputDate = (dateStr: string | undefined) => {
         if (!dateStr || dateStr === 'N/A') return '';
@@ -62,17 +73,25 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
     };
 
      const handleAddNote = () => {
-        if (!newNote.trim()) return;
+        if (!newNote.trim() || !currentUser) return;
 
-        const date = new Date('2026-02-07');
+        const date = new Date();
         const formattedDate = date.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: 'numeric' });
         const formattedTime = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         
-        const noteTextWithMeta = `${newNote.trim()} (Admin am ${formattedDate}, ${formattedTime})`;
+        const noteTextWithMeta = `${newNote.trim()} (${currentUser.displayName} am ${formattedDate}, ${formattedTime})`;
 
         const updatedNotes = [...(ticket.notes || []), noteTextWithMeta];
-        onUpdateTicket({ ...ticket, notes: updatedNotes });
+        const updatedTicket = { ...ticket, notes: updatedNotes };
+        onUpdateTicket(updatedTicket);
         setNewNote('');
+        
+        // Simulate email notification
+        if (updatedTicket.reporterEmail) {
+            console.log(`[E-Mail-Simulation] Sende E-Mail an: ${updatedTicket.reporterEmail}`);
+            console.log(`Betreff: Neue Notiz zu Ihrem Ticket ${updatedTicket.id}`);
+            console.log(`Nachricht: Es wurde eine neue Notiz zu Ihrem Ticket "${updatedTicket.title}" hinzugefügt:\n"${newNote.trim()}"`);
+        }
     };
 
     const priorityClasses = {
@@ -199,6 +218,9 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                 border-radius: var(--radius-md);
                 border: 1px solid var(--border);
                 text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
 
             .notes-list {
@@ -347,7 +369,7 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                         <div className={`editable-field ${ticket.technician !== 'N/A' ? 'technician-assigned' : ''}`}>
                             <span>{formatTechnicianName(ticket.technician)}</span><ChevronDownIcon />
                             <select value={ticket.technician} onChange={(e) => handleFieldChange('technician', e.target.value)}>
-                                {technicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Nicht zugewiesen' : t}</option>)}
+                                {technicians.map(t => <option key={t} value={t}>{t === 'N/A' ? 'Zuweisen' : t}</option>)}
                             </select>
                         </div>
                     </div>

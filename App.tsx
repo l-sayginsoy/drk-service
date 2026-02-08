@@ -119,10 +119,22 @@ const App: React.FC = () => {
   const handleTicketUpdate = (updatedTicket: Ticket) => {
     const originalTicket = tickets.find(t => t.id === updatedTicket.id);
     if (!originalTicket) return;
+
+    // Simulate email notification for status change
+    const statusWasChanged = originalTicket.status !== updatedTicket.status;
+    if (statusWasChanged && updatedTicket.reporterEmail) {
+        console.log(`[E-Mail-Simulation] Sende E-Mail an: ${updatedTicket.reporterEmail}`);
+        console.log(`Betreff: Status-Update für Ihr Ticket ${updatedTicket.id}`);
+        console.log(`Nachricht: Der Status Ihres Tickets "${updatedTicket.title}" wurde auf "${updatedTicket.status}" geändert.`);
+        if(updatedTicket.status === Status.Abgeschlossen) {
+             console.log('Nachricht: Der Auftrag wurde erfolgreich abgeschlossen.');
+        }
+    }
+
     let finalTicket = { ...updatedTicket };
     const today = new Date('2026-02-07'); today.setHours(0, 0, 0, 0);
     const todayStr = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const statusWasChanged = originalTicket.status !== finalTicket.status;
+    
     if (statusWasChanged && (originalTicket.status === Status.Offen || originalTicket.status === Status.Ueberfaellig) && finalTicket.status === Status.InArbeit) {
         finalTicket.dueDate = getFutureDateInGermanFormat(3);
     } else if (statusWasChanged && finalTicket.status === Status.Abgeschlossen) {
@@ -150,6 +162,7 @@ const App: React.FC = () => {
       priority: newTicketData.priority || Priority.Mittel,
       technician: newTicketData.technician || 'N/A',
       notes: newTicketData.notes || [],
+      hasNewNoteFromReporter: false,
     };
     setTickets(prevTickets => [newTicket, ...prevTickets]);
     setIsModalOpen(false);
@@ -182,6 +195,15 @@ const App: React.FC = () => {
 
   const allAreas = AREAS;
   const allTechnicians = useMemo(() => ['N/A', ...TECHNICIANS_DATA.map(t => t.name)], []);
+  
+  const techniciansForFilter = useMemo(() => {
+      const allTechniciansWithOptions = ['Alle', ...allTechnicians];
+      if (currentUser?.role === Role.Technician) {
+          return allTechniciansWithOptions.filter(name => name !== currentUser.displayName);
+      }
+      return allTechniciansWithOptions;
+  }, [allTechnicians, currentUser]);
+
 
   const changeView = (view: string) => {
     if (['dashboard', 'reports'].includes(view) && currentUser?.role !== Role.Admin) {
@@ -203,6 +225,7 @@ const App: React.FC = () => {
         if (selectedTicketIds.includes(ticket.id)) {
             const updated = { ...ticket, [property]: value };
             if (property === 'status' && value === Status.Abgeschlossen) updated.completionDate = todayStr;
+            handleTicketUpdate(updated); // Reuse logic for single update to trigger notifications
             return updated;
         }
         return ticket;
@@ -319,7 +342,7 @@ const App: React.FC = () => {
   const handleLogout = () => setCurrentUser(null);
 
   if (!currentUser) {
-    return <Portal onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} areas={allAreas.filter(a => a !== 'Alle')} />;
+    return <Portal onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} onUpdateTicket={handleTicketUpdate} areas={allAreas.filter(a => a !== 'Alle')} />;
   }
 
   const isBulkActionsVisible = (currentView === 'tickets' || currentView === 'erledigt') && selectedTicketIds.length > 0;
@@ -336,18 +359,18 @@ const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.displayName} />
+      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.displayName} tickets={tickets} />
       <main>
         <Header stats={stats} filters={filters} setFilters={setFilters} onNewTicketClick={() => setIsModalOpen(true)} currentView={currentView} />
         {isBulkActionsVisible ? (
              <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicians} statuses={Object.values(Status)} onBulkUpdate={handleBulkUpdate} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedTicketIds([])} />
         ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt') &&
-            <FilterBar filters={filters} setFilters={setFilters} areas={allAreas} technicians={['Alle', ...allTechnicians]} statuses={statusesForFilter} showStatusFilter={currentView === 'tickets' || currentView === 'dashboard'} showGroupBy={currentView === 'tickets'} onExportCSV={handleExportCSV} onExportPDF={handleExportPDF} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} />
+            <FilterBar filters={filters} setFilters={setFilters} areas={allAreas} technicians={techniciansForFilter} statuses={statusesForFilter} onExportCSV={handleExportCSV} onExportPDF={handleExportPDF} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
         )}
         {renderCurrentView()}
       </main>
       {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} areas={allAreas.filter(a => a !== 'Alle')} />}
-      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicians} statuses={Object.values(Status)} />}
+      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicians} statuses={Object.values(Status)} currentUser={currentUser} />}
     </div>
   );
 };
