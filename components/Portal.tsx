@@ -1,0 +1,473 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Ticket, Priority, Role } from '../types';
+import { PlusIcon } from './icons/PlusIcon';
+import { SearchIcon } from './icons/SearchIcon';
+import { UserIcon } from './icons/UserIcon';
+import { CogIcon } from './icons/CogIcon';
+import { TECHNICIANS_DATA } from '../constants';
+import { CameraIcon } from './icons/CameraIcon';
+import { XIcon } from './icons/XIcon';
+import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
+
+const LOCAL_STORAGE_KEY = 'facility-management-tickets';
+const DRAFT_STORAGE_KEY = 'facility-management-ticket-draft';
+
+type PortalView = 'menu' | 'erfassen' | 'pruefen' | 'status-result' | 'success' | 'techniker-login' | 'admin-login';
+
+interface PortalProps {
+  onLogin: (role: Role, name: string) => void;
+  tickets: Ticket[];
+  areas: string[];
+  onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
+}
+
+const formatNote = (note: string) => {
+    const noteRegex = /^(.*)\s\((.*)\s(?:am\s)?(\d{1,2}\.\d{1,2}\.\d{2,4}),?\s(\d{2}:\d{2})(?::\d{2})?\)$/;
+    const match = note.match(noteRegex);
+    if (match) {
+        const [, mainText, user, dateStr, time] = match;
+        const [day, month, year] = dateStr.split('.');
+        const formattedDate = `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year.slice(-2)}`;
+        const metaText = `(${user} ${formattedDate} ${time})`;
+        return <><span className="note-main-text">{mainText}</span><span className="note-meta">{metaText}</span></>;
+    }
+    return <span className="note-main-text">{note}</span>;
+};
+
+const getSuggestedDueDate = (priority: Priority): string => {
+    const date = new Date();
+    switch (priority) {
+        case Priority.Hoch: date.setDate(date.getDate() + 2); break;
+        case Priority.Mittel: date.setDate(date.getDate() + 5); break;
+        case Priority.Niedrig: date.setDate(date.getDate() + 10); break;
+    }
+    return date.toISOString().split('T')[0];
+};
+
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_LONG_EDGE = 1600;
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > MAX_LONG_EDGE) {
+                        height *= MAX_LONG_EDGE / width;
+                        width = MAX_LONG_EDGE;
+                    }
+                } else {
+                    if (height > MAX_LONG_EDGE) {
+                        width *= MAX_LONG_EDGE / height;
+                        height = MAX_LONG_EDGE;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return reject(new Error('Canvas context not available'));
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+};
+
+const NewTicketForm: React.FC<{
+    areas: string[];
+    onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
+    setView: (view: PortalView) => void;
+    setNewlyCreatedTicketId: (id: string) => void;
+}> = ({ areas, onAddTicket, setView, setNewlyCreatedTicketId }) => {
+    const [formState, setFormState] = useState(() => {
+        try {
+            const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (savedDraft) return JSON.parse(savedDraft);
+        } catch (e) { console.error("Could not load draft", e); }
+        
+        return {
+            reporter: '', area: areas[0] || '', location: '', title: '',
+            priority: Priority.Mittel, description: '', wunschTermin: '',
+            photos: [] as string[]
+        };
+    });
+
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formState));
+    }, [formState]);
+
+    const photoRules = useMemo(() => {
+        const recommended = ['Wäscherei', 'Küche', 'Haustechnik'];
+        const required = ['Brandschutz', 'Sicherheit'];
+        if (required.includes(formState.area)) return { mode: 'required', text: 'Foto ist für diesen Bereich erforderlich.' };
+        if (recommended.includes(formState.area)) return { mode: 'recommended', text: 'Foto wird für diesen Bereich empfohlen.' };
+        return { mode: 'optional', text: '' };
+    }, [formState.area]);
+
+    const validate = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formState.area) newErrors.area = 'Bereich ist ein Pflichtfeld.';
+        if (formState.title.length < 10) newErrors.title = 'Betreff muss mindestens 10 Zeichen lang sein.';
+        if (!formState.location.trim()) newErrors.location = 'Ort ist ein Pflichtfeld.';
+        if (!formState.description.trim()) newErrors.description = 'Beschreibung ist ein Pflichtfeld.';
+        if (photoRules.mode === 'required' && formState.photos.length === 0) newErrors.photos = 'Ein Foto ist erforderlich.';
+        if (formState.reporter.trim().length < 2) newErrors.reporter = 'Name muss mindestens 2 Zeichen lang sein.';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        if (formState.photos.length >= 3) {
+            alert("Maximal 3 Fotos erlaubt."); return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert("Datei ist zu groß."); return;
+        }
+
+        try {
+            const compressedDataUrl = await compressImage(file);
+            if (compressedDataUrl.length > 4 * 1024 * 1024) {
+                 alert("Komprimiertes Bild ist zu groß (max 4MB)."); return;
+            }
+            setFormState(prev => ({ ...prev, photos: [...prev.photos, compressedDataUrl] }));
+        } catch (error) {
+            console.error("Fehler bei der Bildkomprimierung:", error);
+            alert("Fehler bei der Bildverarbeitung.");
+        }
+    };
+    
+    const handleRemovePhoto = (index: number) => {
+        setFormState(prev => ({ ...prev, photos: prev.photos.filter((_, i) => i !== index) }));
+    };
+
+    const handleSubmit = () => {
+        if (!validate()) return;
+        const [year, month, day] = getSuggestedDueDate(formState.priority).split('-');
+        const formattedDueDate = `${day}.${month}.${year}`;
+        const formattedWunschTermin = formState.wunschTermin
+            ? formState.wunschTermin.split('-').reverse().join('.')
+            : undefined;
+
+        const newTicketId = onAddTicket({
+            title: formState.title, area: formState.area, location: formState.location,
+            reporter: formState.reporter, dueDate: formattedDueDate, technician: 'N/A',
+            priority: formState.priority, description: formState.description,
+            wunschTermin: formattedWunschTermin, photos: formState.photos, notes: [],
+        });
+
+        setNewlyCreatedTicketId(newTicketId);
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        setView('success');
+    };
+    
+    return (
+        <>
+            <div className="portal-header condensed">
+                <button className="back-btn" onClick={() => setView('menu')}><ArrowLeftIcon /></button>
+                <h2 className="portal-subtitle">Ticket erstellen</h2>
+            </div>
+            <div className="portal-form mobile-form">
+                <div className="form-group">
+                    <label>Bereich*</label>
+                    <select value={formState.area} onChange={e => setFormState(p => ({...p, area: e.target.value}))}>
+                        {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                </div>
+                 <div className="form-group">
+                    <label>Ort / Bereich Detail*</label>
+                    <input type="text" placeholder="z.B. Raum 102, Maschine 3" value={formState.location} onChange={e => setFormState(p => ({...p, location: e.target.value}))} />
+                    {errors.location && <span className="error-text">{errors.location}</span>}
+                </div>
+                <div className="form-group">
+                    <label>Priorität*</label>
+                    <select value={formState.priority} onChange={e => setFormState(p => ({...p, priority: e.target.value as Priority}))}>
+                        {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label>Betreff*</label>
+                    <input type="text" placeholder="Kurze Beschreibung des Problems" value={formState.title} onChange={e => setFormState(p => ({...p, title: e.target.value}))} />
+                    {errors.title && <span className="error-text">{errors.title}</span>}
+                </div>
+                <div className="form-group">
+                    <label>Detaillierte Beschreibung*</label>
+                    <textarea placeholder="Bitte beschreiben Sie das Problem so genau wie möglich." rows={5} value={formState.description} onChange={e => setFormState(p => ({...p, description: e.target.value}))}></textarea>
+                    {errors.description && <span className="error-text">{errors.description}</span>}
+                </div>
+                 <div className="form-group">
+                    <label>Foto hinzufügen {photoRules.mode !== 'optional' && '*'}</label>
+                    <div className="photo-upload-area">
+                        {formState.photos.map((photo, index) => (
+                            <div key={index} className="photo-preview">
+                                <img src={photo} alt={`Vorschau ${index + 1}`} />
+                                <button className="remove-photo-btn" onClick={() => handleRemovePhoto(index)}><XIcon /></button>
+                            </div>
+                        ))}
+                        {formState.photos.length < 3 && (
+                            <div className="photo-buttons">
+                                <button className="portal-btn btn-secondary" onClick={() => cameraInputRef.current?.click()}>
+                                    <CameraIcon /> Foto aufnehmen
+                                </button>
+                                <button className="portal-btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                                    Aus Galerie wählen
+                                </button>
+                                {/* C.1 - Hidden input for gallery */}
+                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                                {/* C.2 - Hidden input for camera with 'capture' attribute */}
+                                {/* Note for C.3: The 'capture' attribute works reliably on mobile browsers over HTTPS or on localhost. On desktop or insecure connections, it will likely fall back to a standard file picker. */}
+                                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                            </div>
+                        )}
+                    </div>
+                     {photoRules.text && <span className={`info-text ${photoRules.mode}`}>{photoRules.text}</span>}
+                     {errors.photos && <span className="error-text">{errors.photos}</span>}
+                </div>
+                <div className="form-group">
+                    <label>Ihr Name*</label>
+                    <input type="text" placeholder="Max Mustermann" value={formState.reporter} onChange={e => setFormState(p => ({...p, reporter: e.target.value}))} />
+                    {errors.reporter && <span className="error-text">{errors.reporter}</span>}
+                </div>
+                 <div className="form-group">
+                    <label>Wunsch-Termin (Optional)</label>
+                    <input type="date" value={formState.wunschTermin} onChange={e => setFormState(p => ({...p, wunschTermin: e.target.value}))} />
+                </div>
+            </div>
+             <div className="portal-actions">
+              <button className="portal-btn btn-primary" onClick={handleSubmit}>Meldung absenden</button>
+            </div>
+        </>
+    );
+};
+
+
+const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket }) => {
+  const [view, setView] = useState<PortalView>('menu');
+  const [ticketIdInput, setTicketIdInput] = useState('');
+  const [foundTicket, setFoundTicket] = useState<Ticket | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [newlyCreatedTicketId, setNewlyCreatedTicketId] = useState<string | null>(null);
+
+  const handleTicketPruefen = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchError(null);
+    setFoundTicket(null);
+    let currentTickets: Ticket[] = [];
+    try {
+        const savedTickets = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedTickets) currentTickets = JSON.parse(savedTickets);
+    } catch (error) { console.error("Could not load tickets in portal.", error); }
+
+    const trimmedId = ticketIdInput.trim().toUpperCase();
+    if (!trimmedId) {
+        setSearchError('Bitte geben Sie eine Ticket-ID ein.');
+        setView('status-result');
+        return;
+    }
+    const ticket = currentTickets.find(t => t.id.toUpperCase() === trimmedId);
+    if (ticket) setFoundTicket(ticket);
+    else setSearchError(`Ticket mit der ID "${trimmedId}" wurde nicht gefunden.`);
+    setView('status-result');
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault(); onLogin(Role.Admin, 'Admin');
+  };
+
+  const resetAndGoToMenu = () => {
+      setTicketIdInput(''); setFoundTicket(null); setSearchError(null); setNewlyCreatedTicketId(null); setView('menu');
+  };
+
+  const renderContent = () => {
+    switch(view) {
+      case 'erfassen':
+        return <NewTicketForm areas={areas} onAddTicket={onAddTicket} setView={setView} setNewlyCreatedTicketId={setNewlyCreatedTicketId} />;
+      case 'pruefen':
+        return (
+          <form onSubmit={handleTicketPruefen}>
+            <div className="portal-header condensed">
+                <button type="button" className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
+                <h2 className="portal-subtitle">Status prüfen</h2>
+            </div>
+            <div className="portal-form">
+                <label>Bitte geben Sie Ihre Ticket-ID ein</label>
+                <input type="text" placeholder="M-12345" value={ticketIdInput} onChange={e => setTicketIdInput(e.target.value)} />
+            </div>
+            <div className="portal-actions">
+              <button type="submit" className="portal-btn btn-primary">Status prüfen</button>
+            </div>
+          </form>
+        );
+       case 'techniker-login':
+        return (
+            <>
+                <div className="portal-header condensed">
+                    <button className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
+                    <h2 className="portal-subtitle">Anmeldung Haustechnik</h2>
+                </div>
+                <div className="portal-actions">
+                    {TECHNICIANS_DATA.map(tech => (
+                        <button key={tech.name} className="portal-btn btn-secondary" onClick={() => onLogin(Role.Technician, tech.name)}>
+                            {tech.name}
+                        </button>
+                    ))}
+                </div>
+            </>
+        );
+       case 'admin-login':
+        return (
+            <form onSubmit={handleAdminLogin}>
+                <div className="portal-header condensed">
+                    <button type="button" className="back-btn" onClick={resetAndGoToMenu}><ArrowLeftIcon /></button>
+                    <h2 className="portal-subtitle">Admin Anmeldung</h2>
+                </div>
+                <div className="portal-actions">
+                    <button type="submit" className="portal-btn btn-primary">Als Admin fortfahren</button>
+                </div>
+            </form>
+        );
+      case 'status-result':
+        return (
+            <>
+                <div className="portal-header condensed">
+                   <button className="back-btn" onClick={() => setView('pruefen')}><ArrowLeftIcon /></button>
+                   <h2 className="portal-subtitle">Ticket-Status</h2>
+                </div>
+                {searchError ? (
+                    <p className="search-result-text error">{searchError}</p>
+                ) : foundTicket && (
+                  <div className="status-result-box">
+                    <div className="status-result-id">{foundTicket.id}</div>
+                    <div className="status-details-box">
+                        <div className="status-detail-item"><strong>Status:</strong> <span>{foundTicket.status}</span></div>
+                        <div className="status-detail-item"><strong>Betreff:</strong> <span>{foundTicket.title}</span></div>
+                        <div className="status-detail-item"><strong>Techniker:</strong> <span>{foundTicket.technician === 'N/A' ? 'Noch nicht zugewiesen' : foundTicket.technician}</span></div>
+                        <div className="portal-notes-container">
+                            <p className="notes-title"><strong>Letzte Notiz:</strong></p>
+                            {foundTicket.notes && foundTicket.notes.length > 0 ? (
+                                <div className="portal-note-item">{formatNote(foundTicket.notes[foundTicket.notes.length - 1])}</div>
+                            ) : <span className="no-notes">Keine Notizen vorhanden.</span>}
+                        </div>
+                    </div>
+                  </div>
+                )}
+                 <div className="portal-actions">
+                    <button className="portal-btn btn-primary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
+                </div>
+            </>
+        );
+       case 'success':
+        return (
+            <>
+                <h2 className="portal-subtitle">Meldung erfolgreich gesendet!</h2>
+                <div className="success-message">
+                    <p>Vielen Dank, Ihr Ticket wurde erfolgreich erstellt mit der ID:</p>
+                    <div className="success-ticket-id">{newlyCreatedTicketId}</div>
+                    <p>Bitte bewahren Sie diese ID für zukünftige Anfragen auf.</p>
+                </div>
+                <div className="portal-actions">
+                    <button className="portal-btn btn-primary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
+                </div>
+            </>
+        );
+      case 'menu':
+      default:
+        return (
+             <>
+                <div className="portal-header">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-3-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
+                    <h1 className="portal-title">Haustechnik Portal</h1>
+                    <p className="portal-subtitle-org">DRK Kreisverband Vorderpfalz e. V.</p>
+                </div>
+                <div className="portal-menu">
+                    <button className="portal-menu-btn primary" onClick={() => setView('erfassen')}><div className="btn-content"><div className="btn-icon"><PlusIcon /></div><div className="btn-text"><span className="btn-title">Ticket erstellen</span><span className="btn-description">Melden Sie eine neue Störung.</span></div></div></button>
+                    <button className="portal-menu-btn" onClick={() => setView('pruefen')}><div className="btn-content"><div className="btn-icon"><SearchIcon /></div><div className="btn-text"><span className="btn-title">Status prüfen</span><span className="btn-description">Fortschritt eines Tickets prüfen.</span></div></div></button>
+                    <button className="portal-menu-btn" onClick={() => setView('techniker-login')}><div className="btn-content"><div className="btn-icon"><UserIcon /></div><div className="btn-text"><span className="btn-title">Anmeldung Haustechnik</span><span className="btn-description">Login für Techniker.</span></div></div></button>
+                    <button className="portal-menu-btn" onClick={() => setView('admin-login')}><div className="btn-content"><div className="btn-icon"><CogIcon /></div><div className="btn-text"><span className="btn-title">Admin Anmeldung</span><span className="btn-description">Verwaltung des Systems.</span></div></div></button>
+                </div>
+             </>
+        );
+    }
+  };
+  
+    return (
+        <div className="portal-container">
+            <style>{`
+                :root { --portal-max-width: 550px; }
+                .portal-container { width: 100%; min-height: 100vh; display: flex; justify-content: center; align-items: center; background-color: var(--bg-primary); font-family: 'Geist', sans-serif; color: var(--text-primary); padding: 2rem 1rem; }
+                .portal-box { width: 100%; max-width: var(--portal-max-width); background: var(--bg-secondary); border-radius: 12px; box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; }
+                .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
+                .portal-logo { max-width: 250px; height: auto; margin-bottom: 2rem; }
+                .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+                .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; margin-right: 1rem; }
+                .back-btn:hover { color: var(--text-primary); }
+                .portal-title { font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.5rem; }
+                .portal-subtitle-org { font-size: 1.1rem; font-weight: 500; color: var(--text-secondary); }
+                .portal-menu { padding: 0 2rem 2.5rem; display: flex; flex-direction: column; gap: 1rem; }
+                .portal-menu-btn { background-color: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 1.5rem; text-align: left; cursor: pointer; transition: var(--transition-smooth); width: 100%; font-family: inherit; }
+                .portal-menu-btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-active); background-color: var(--bg-secondary); }
+                .portal-menu-btn.primary { background-color: var(--accent-primary); border-color: var(--accent-primary); color: white; }
+                .portal-menu-btn.primary:hover { background-color: #0b5ed7; border-color: #0a58ca; }
+                .btn-content { display: flex; align-items: center; gap: 1.25rem; }
+                .btn-icon { background-color: var(--bg-secondary); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-primary); flex-shrink: 0; border: 1px solid var(--border); }
+                .portal-menu-btn.primary .btn-icon { background-color: rgba(255, 255, 255, 0.2); border: none; color: white; }
+                .btn-icon svg { width: 22px; height: 22px; }
+                .btn-text { display: flex; flex-direction: column; }
+                .btn-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem; color: var(--text-primary); }
+                .btn-description { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; }
+                .portal-menu-btn.primary .btn-title { color: white; }
+                .portal-menu-btn.primary .btn-description { color: rgba(255, 255, 255, 0.85); }
+                .portal-actions { display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem 1rem; }
+                .portal-btn { padding: 0.8rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: var(--transition-smooth); display: flex; align-items: center; justify-content: center; gap: 0.75rem; border: 1px solid transparent; width: 100%; }
+                .btn-primary { background-color: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }
+                .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+                .btn-primary:disabled { background-color: var(--border-active); border-color: var(--border-active); cursor: not-allowed; }
+                .btn-secondary { background-color: var(--bg-tertiary); border-color: var(--border); color: var(--text-secondary); }
+                .btn-secondary:hover { background-color: var(--border); color: var(--text-primary); }
+                .portal-subtitle { font-size: 1.25rem; font-weight: 600; text-align: center; flex-grow: 1; }
+                .portal-form { padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 1.25rem; }
+                .form-group { display: flex; flex-direction: column; }
+                .form-group label { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; }
+                .portal-form input, .portal-form select, .portal-form textarea { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); font-size: 1rem; color: var(--text-primary); transition: var(--transition-smooth); }
+                .portal-form input:focus, .portal-form select:focus, .portal-form textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
+                .error-text { color: var(--accent-danger); font-size: 0.8rem; margin-top: 0.25rem; }
+                .info-text { font-size: 0.8rem; margin-top: 0.25rem; color: var(--text-muted); }
+                .info-text.required { color: var(--accent-danger); font-weight: 500; }
+                .info-text.recommended { color: var(--text-secondary); }
+                .photo-upload-area { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+                .photo-preview { position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+                .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+                .remove-photo-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+                .remove-photo-btn svg { width: 14px; height: 14px; }
+                .photo-buttons { display: flex; flex-direction: column; gap: 0.75rem; }
+                .search-result-text.error { color: var(--accent-danger); font-size: 0.9rem; text-align: center; padding: 1rem; }
+                .status-result-box { padding: 1rem; }
+                .status-result-id { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 1rem; font-size: 1.25rem; font-weight: 600; text-align: center; margin-bottom: 1.5rem; color: var(--accent-primary); }
+                .status-details-box { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+                .status-detail-item { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+                .portal-notes-container { margin-top: 1rem; } .notes-title { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; }
+                .portal-note-item { background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; }
+                .note-meta { display: block; text-align: right; font-size: 0.8em; font-style: italic; color: var(--text-muted); margin-top: 0.5rem; }
+                .success-message { text-align: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
+                .success-ticket-id { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px; margin: 1rem auto; display: inline-block; border: 1px solid var(--border); }
+            `}</style>
+            <div className="portal-box">
+                {renderContent()}
+            </div>
+        </div>
+    );
+};
+
+export default Portal;

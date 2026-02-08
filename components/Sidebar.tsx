@@ -1,0 +1,314 @@
+import React from 'react';
+import { LayoutDashboardIcon } from './icons/LayoutDashboardIcon';
+import { BuildingOfficeIcon } from './icons/BuildingOfficeIcon';
+import { UserIcon } from './icons/UserIcon';
+import { SparklesIcon } from './icons/SparklesIcon';
+import { CogIcon } from './icons/CogIcon';
+import { LogoutIcon } from './icons/LogoutIcon';
+import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
+import { Avatar } from './Avatar';
+import ThemeToggle from './ThemeToggle';
+import { ChevronsLeftRightIcon } from './icons/ChevronsLeftRightIcon';
+import { Role } from '../types';
+
+
+interface SidebarProps {
+    isCollapsed: boolean;
+    setCollapsed: (isCollapsed: boolean) => void;
+    theme: string;
+    setTheme: (theme: string) => void;
+    currentView: string;
+    setCurrentView: (view: string) => void;
+    onLogout: () => void;
+    userRole: Role | null;
+    userName: string | null;
+}
+
+// Central navigation configuration
+const NAV_ITEMS_CONFIG = [
+    { viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
+    { viewName: 'tickets', icon: <BuildingOfficeIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
+    { viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
+    { viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin], disabled: true },
+    { viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
+    { viewName: 'settings', icon: <CogIcon />, label: 'Settings', requiredRoles: [Role.Admin], disabled: true },
+];
+
+
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, setTheme, currentView, setCurrentView, onLogout, userRole, userName }) => {
+    
+    const NavItem: React.FC<{viewName: string, icon: React.ReactNode, label: string}> = ({ viewName, icon, label }) => (
+        <button 
+            className={`nav-item ${currentView === viewName ? 'active' : ''}`}
+            onClick={() => setCurrentView(viewName)}
+            title={isCollapsed ? label : ''}
+        >
+            {icon}
+            <span className="nav-label">{label}</span>
+            <span className="nav-tooltip">{label}</span>
+        </button>
+    );
+
+     const DisabledNavItem: React.FC<{icon: React.ReactNode, label: string}> = ({ icon, label }) => (
+        <button 
+            className="nav-item" 
+            disabled 
+            style={{cursor: 'not-allowed', opacity: 0.5}}
+            title={isCollapsed ? label : ''}
+        >
+            {icon}
+            <span className="nav-label">{label}</span>
+            <span className="nav-tooltip">{label}</span>
+        </button>
+    );
+
+    return (
+        <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+            <style>{`
+                .sidebar {
+                    width: 260px;
+                    background: var(--bg-secondary);
+                    border-right: 1px solid var(--border);
+                    display: flex;
+                    flex-direction: column;
+                    padding: 1.5rem 1rem;
+                    transition: width 0.3s ease, background-color 0.3s ease;
+                    flex-shrink: 0;
+                }
+                .sidebar.collapsed {
+                    width: 88px;
+                    padding: 1.5rem 0.5rem;
+                }
+                .sidebar-header {
+                    display: flex;
+                    justify-content: flex-start;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0 0.5rem;
+                    margin-bottom: 2.5rem;
+                    transition: padding 0.3s ease, margin-bottom 0.3s ease, height 0.3s ease;
+                    height: 50px;
+                }
+                 .sidebar.collapsed .sidebar-header {
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 1.5rem;
+                    padding: 0;
+                    margin-bottom: 2.3rem;
+                    height: auto;
+                    justify-content: center;
+                }
+                .sidebar-logo-container {
+                     flex-grow: 1;
+                     max-width: 100%;
+                     overflow: hidden;
+                     transition: opacity 0.3s ease, width 0.3s ease;
+                     display: block;
+                }
+                 .sidebar.collapsed .sidebar-logo-container {
+                    display: none;
+                }
+                .sidebar-logo {
+                    max-width: 100%;
+                    height: auto;
+                }
+                .sidebar-icon-logo {
+                    display: none;
+                    color: var(--accent-primary);
+                }
+                 .sidebar.collapsed .sidebar-icon-logo {
+                    display: block;
+                    width: 32px;
+                    height: 32px;
+                }
+
+                .nav-menu {
+                    flex-grow: 1;
+                    overflow: hidden;
+                }
+                .nav-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    padding: 0.875rem 1rem;
+                    border-radius: var(--radius-md);
+                    color: var(--text-secondary);
+                    text-decoration: none;
+                    margin: 0.5rem 0;
+                    transition: background-color 0.2s ease, color 0.2s ease;
+                    font-weight: 500;
+                    width: 100%;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-family: inherit;
+                    font-size: 1rem;
+                    text-align: left;
+                    position: relative;
+                }
+                 .sidebar.collapsed .nav-item {
+                    justify-content: center;
+                    padding: 0.875rem;
+                    gap: 0;
+                }
+                .nav-item:hover {
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                }
+                .nav-item.active {
+                    background-color: var(--bg-tertiary);
+                    color: var(--text-primary);
+                    font-weight: 600;
+                    box-shadow: none;
+                }
+                .nav-item.active:hover {
+                    background-color: var(--bg-tertiary);
+                    color: var(--text-primary);
+                }
+                .nav-item.active::before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 4px;
+                    height: 24px;
+                    background-color: var(--accent-primary);
+                    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+                }
+                .sidebar.collapsed .nav-item.active::before {
+                    height: 20px;
+                }
+                .nav-item svg {
+                    width: 20px;
+                    height: 20px;
+                    flex-shrink: 0;
+                }
+                .nav-label {
+                    white-space: nowrap;
+                    transition: opacity 0.2s ease;
+                    opacity: 1;
+                }
+                .sidebar.collapsed .nav-label {
+                    opacity: 0;
+                    width: 0;
+                    overflow: hidden;
+                }
+                
+                /* Tooltip styles */
+                .nav-tooltip {
+                    position: absolute;
+                    left: calc(100% + 1rem);
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                    padding: 0.5rem 1rem;
+                    border-radius: var(--radius-md);
+                    box-shadow: var(--shadow-md);
+                    white-space: nowrap;
+                    font-size: 0.9rem;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: opacity 0.2s ease, visibility 0.2s ease;
+                    pointer-events: none;
+                    z-index: 20;
+                }
+                 .sidebar.collapsed .nav-item:hover .nav-tooltip {
+                    opacity: 1;
+                    visibility: visible;
+                }
+
+
+                .sidebar-footer {
+                    padding-top: 1.5rem;
+                    border-top: 1px solid var(--border);
+                    transition: border-color 0.3s ease;
+                    overflow: hidden;
+                }
+                 .sidebar.collapsed .sidebar-footer {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+
+                .collapse-toggle {
+                    background: none;
+                    border: none;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    padding: 0.5rem;
+                    border-radius: var(--radius-md);
+                }
+                .collapse-toggle:hover {
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                }
+                .collapse-toggle svg {
+                     transition: transform 0.3s ease;
+                }
+                .sidebar.collapsed .collapse-toggle svg {
+                    transform: rotate(180deg);
+                }
+            `}</style>
+            <div className="sidebar-header">
+                <div className="sidebar-logo-container">
+                    <img 
+                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-3-U3g2-q-P6AAAAAElFTkSuQmCC"
+                        alt="DRK Logo"
+                        className="sidebar-logo"
+                    />
+                </div>
+                <BuildingOfficeIcon className="sidebar-icon-logo" />
+                 <button 
+                    className="collapse-toggle" 
+                    onClick={() => setCollapsed(!isCollapsed)} 
+                    title={isCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
+                >
+                    <ChevronsLeftRightIcon />
+                </button>
+            </div>
+            <nav className="nav-menu">
+                {NAV_ITEMS_CONFIG.map(item => {
+                    if (userRole && item.requiredRoles.includes(userRole)) {
+                        if (item.disabled) {
+                            return (
+                                <DisabledNavItem 
+                                    key={item.viewName}
+                                    icon={item.icon}
+                                    label={item.label}
+                                />
+                            );
+                        }
+                        return (
+                            <NavItem
+                                key={item.viewName}
+                                viewName={item.viewName}
+                                icon={item.icon}
+                                label={item.label}
+                            />
+                        );
+                    }
+                    return null;
+                })}
+            </nav>
+            <div className="sidebar-footer">
+                <div style={{ marginBottom: '1rem' }}>
+                    <ThemeToggle theme={theme} setTheme={setTheme} isCollapsed={isCollapsed} />
+                </div>
+                <button className="nav-item" title={isCollapsed ? (userName ?? '') : ''}>
+                     <Avatar name={userName ?? 'Benutzer'} />
+                     <span className="nav-label">{userName ?? 'Benutzer'}</span>
+                     <span className="nav-tooltip">{userName ?? 'Benutzer'}</span>
+                </button>
+                 <button className="nav-item" title={isCollapsed ? "Abmelden" : ''} onClick={onLogout}>
+                    <LogoutIcon />
+                    <span className="nav-label">Abmelden</span>
+                    <span className="nav-tooltip">Abmelden</span>
+                </button>
+            </div>
+        </aside>
+    );
+};
+
+export default Sidebar;
