@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { LayoutDashboardIcon } from './icons/LayoutDashboardIcon';
 import { UserIcon } from './icons/UserIcon';
-import { SparklesIcon } from './icons/SparklesIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { LogoutIcon } from './icons/LogoutIcon';
 import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
@@ -14,6 +13,7 @@ import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
 import { TicketIcon } from './icons/TicketIcon';
+import { BarChartIcon } from './icons/BarChartIcon';
 
 
 interface SidebarProps {
@@ -46,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
         { type: 'view', viewName: 'tickets', icon: <ClipboardIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
-        { type: 'view', viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
+        { type: 'view', viewName: 'reports', icon: <BarChartIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
         { type: 'action', action: 'newTicket', icon: <DocumentPlusIcon />, label: 'Neues Ticket', requiredRoles: [Role.Admin, Role.Technician], onClick: onNewTicketClick },
         { type: 'view', viewName: 'settings', icon: <SlidersIcon />, label: 'Settings', requiredRoles: [Role.Admin] },
     ];
@@ -362,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
             <div className="sidebar-header">
                 <div className="sidebar-logo-container">
                     <img 
-                        src="/assets/drk-logo.png"
+                        src="/drk-logo.png"
                         alt="App Logo"
                         className="sidebar-logo"
                     />

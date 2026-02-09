@@ -306,7 +306,7 @@ export const STATUSES = ['Alle', 'Offen', 'In Arbeit', 'Überfällig', 'Abgeschl
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
     appName: "Haustechnik Service",
-    logoUrl: "/assets/drk-logo.png",
+    logoUrl: "/drk-logo.png",
     defaultPriority: Priority.Mittel,
     dueDateRules: {
         [Priority.Hoch]: 2,

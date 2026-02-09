@@ -9,7 +9,12 @@ interface KanbanBoardProps {
   selectedTicket: Ticket | null;
 }
 
-const isUrgent = (ticket: Ticket) => !!ticket.is_emergency || ticket.status === Status.Ueberfaellig;
+const getTicketSortPriority = (ticket: Ticket): number => {
+    if (ticket.is_emergency) return 0; // Highest priority
+    if (ticket.status === Status.Ueberfaellig) return 1; // Second highest
+    return 2; // Normal
+};
+
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({ tickets, onUpdateTicket, onSelectTicket, selectedTicket }) => {
   const columns: { title: string; status: Status }[] = [
@@ -29,10 +34,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tickets, onUpdateTicket, onSe
     return tickets
       .filter(ticket => ticket.status === status && ticket.status !== Status.Abgeschlossen)
       .sort((a, b) => {
-          const aIsUrgent = isUrgent(a);
-          const bIsUrgent = isUrgent(b);
-          if (aIsUrgent !== bIsUrgent) {
-              return aIsUrgent ? -1 : 1;
+          const priorityA = getTicketSortPriority(a);
+          const priorityB = getTicketSortPriority(b);
+          if (priorityA !== priorityB) {
+              return priorityA - priorityB;
           }
           // Optional: secondary sort by due date
           const dateA = a.dueDate.split('.').reverse().join('-');

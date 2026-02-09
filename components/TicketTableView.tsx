@@ -28,7 +28,11 @@ interface GroupedTickets {
 
 type ProcessedTickets = FlatTickets | GroupedTickets;
 
-const isUrgent = (ticket: Ticket) => !!ticket.is_emergency || ticket.status === Status.Ueberfaellig;
+const getTicketSortPriority = (ticket: Ticket): number => {
+    if (ticket.is_emergency) return 0; // Highest priority
+    if (ticket.status === Status.Ueberfaellig) return 1; // Second highest
+    return 2; // Normal
+};
 
 const ExclamationTriangleIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
@@ -92,24 +96,14 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
 
     const processedTickets: ProcessedTickets = useMemo(() => {
         let sortableItems = [...tickets];
-
-        // Primary sort: always put urgent tickets first
-        sortableItems.sort((a, b) => {
-            const aIsUrgent = isUrgent(a);
-            const bIsUrgent = isUrgent(b);
-            if (aIsUrgent !== bIsUrgent) {
-                return aIsUrgent ? -1 : 1;
-            }
-            return 0; // Keep original order if urgency is the same, secondary sort will apply next
-        });
         
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                // Keep urgent tickets pinned at the top regardless of other sorting
-                const aIsUrgent = isUrgent(a);
-                const bIsUrgent = isUrgent(b);
-                if (aIsUrgent && !bIsUrgent) return -1;
-                if (!aIsUrgent && bIsUrgent) return 1;
+                const priorityA = getTicketSortPriority(a);
+                const priorityB = getTicketSortPriority(b);
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
 
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
@@ -204,11 +198,10 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
     );
 
      const renderTicketRow = (ticket: Ticket) => {
-         const urgent = isUrgent(ticket);
+         const isEmergency = !!ticket.is_emergency;
          const rowClasses = [
             (selectedTicketIds.includes(ticket.id) || selectedTicket?.id === ticket.id) ? 'selected' : '',
-            urgent ? 'urgent-alert' : '',
-            ticket.is_emergency ? 'emergency-frame' : ''
+            isEmergency ? 'urgent-alert' : '',
          ].filter(Boolean).join(' ');
 
         return (
@@ -218,7 +211,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 </td>
                 <td>
                   <div className="ticket-id-cell">
-                    {urgent && <span className="urgent-icon" title="Dringend"><ExclamationTriangleIcon /></span>}
+                    {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                     {ticket.id}
                     {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
                   </div>
@@ -230,7 +223,13 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 <td>{ticket.area}</td>
                 <td>{formatTechnicianName(ticket.technician)}</td>
                 <td><StatusPill status={ticket.status} /></td>
-                <td><PriorityPill priority={ticket.priority} /></td>
+                <td>
+                    {isEmergency ? (
+                        <span className="priority-pill priority-high">Notfall</span>
+                    ) : (
+                        <PriorityPill priority={ticket.priority} />
+                    )}
+                </td>
                 <td>{ticket.entryDate}</td>
                 <td>{ticket.dueDate}</td>
             </tr>
@@ -282,8 +281,8 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
         <div className="table-view-container">
             <style>{`
                  @keyframes pulse-border {
-                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5); }
-                    70% { box-shadow: 0 0 0 4px rgba(220, 53, 69, 0); }
+                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.8); }
+                    70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
                     100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
                 }
                 .table-view-container {
@@ -347,21 +346,22 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     background-color: var(--border-active);
                 }
                 .ticket-table tbody tr.urgent-alert {
-                    animation: pulse-border 2s infinite;
+                    animation: pulse-border 1.5s infinite;
                     background-color: rgba(220, 53, 69, 0.05);
+                    box-shadow: inset 4px 0 0 0 var(--accent-danger);
                 }
                 .ticket-table tbody tr.urgent-alert:hover {
                     background-color: rgba(220, 53, 69, 0.1);
                 }
-                .ticket-table tbody tr.emergency-frame {
-                    box-shadow: inset 4px 0 0 0 var(--accent-danger);
-                }
-                .ticket-table tbody tr.emergency-frame:hover {
-                    background-color: rgba(220, 53, 69, 0.1) !important;
+                .ticket-table tbody tr:not(.selected):not(.urgent-alert) {
+                    box-shadow: inset 4px 0 0 0 transparent;
                 }
                 .ticket-table tbody tr:not(.selected):hover {
                   background-color: var(--bg-tertiary);
                 }
+                 .ticket-table tbody tr:not(.urgent-alert) {
+                     box-shadow: none;
+                 }
                 .ticket-id-cell {
                     display: flex;
                     align-items: center;

@@ -96,6 +96,18 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             console.log(`Nachricht: Es wurde eine neue Notiz zu Ihrem Ticket "${updatedTicket.title}" hinzugefügt:\n"${newNote.trim()}"`);
         }
     };
+    
+    const handleToggleEmergency = () => {
+        const isCurrentlyEmergency = !!ticket.is_emergency;
+        let updatedTicket: Ticket = { ...ticket, is_emergency: !isCurrentlyEmergency };
+
+        // If marking as emergency AND status is not final/overdue, set to Overdue
+        if (!isCurrentlyEmergency && (ticket.status === Status.Offen || ticket.status === Status.InArbeit)) {
+            updatedTicket.status = Status.Ueberfaellig;
+        }
+
+        onUpdateTicket(updatedTicket);
+    };
 
     const priorityClasses = {
         [Priority.Hoch]: 'priority-high',
@@ -228,14 +240,14 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             .add-note-btn-compact:hover:not(:disabled) {
                 opacity: 0.9;
             }
-            .admin-action-btn {
-                background-color: var(--accent-danger);
-                color: white;
-            }
             .admin-action-btn.is-emergency {
                 background-color: var(--bg-tertiary);
                 color: var(--text-secondary);
                 border-color: var(--border);
+            }
+            .admin-action-btn.not-emergency {
+                background-color: var(--accent-danger);
+                color: white;
             }
             
             .photo-gallery { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
@@ -256,12 +268,21 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
 
             {currentUser?.role === Role.Admin && (
               <div className="detail-group">
-                <button
-                  className={`admin-action-btn ${ticket.is_emergency ? 'is-emergency' : ''}`}
-                  onClick={() => onUpdateTicket({ ...ticket, is_emergency: !ticket.is_emergency })}
-                >
-                  {ticket.is_emergency ? 'Notfall-Markierung aufheben' : 'Als Notfall markieren'}
-                </button>
+                {ticket.is_emergency ? (
+                    <button
+                        className="admin-action-btn is-emergency"
+                        onClick={handleToggleEmergency}
+                    >
+                        Notfall-Markierung aufheben
+                    </button>
+                ) : (
+                    <button
+                        className="admin-action-btn not-emergency"
+                        onClick={handleToggleEmergency}
+                    >
+                        Als Notfall markieren
+                    </button>
+                )}
               </div>
             )}
 

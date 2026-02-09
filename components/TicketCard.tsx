@@ -107,7 +107,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
 
     const technicianOptions = ['N/A', ...TECHNICIANS_DATA.map(t => t.name)];
     
-    const isUrgent = !!ticket.is_emergency || ticket.status === Status.Ueberfaellig;
+    const isEmergency = !!ticket.is_emergency;
 
     const Dropdown: React.FC<{ 
         options: string[], 
@@ -123,7 +123,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
         </div>
     );
 
-    const cardClasses = `ticket-card ${selectedTicket?.id === ticket.id ? 'selected' : ''} ${ticket.status === Status.Abgeschlossen ? 'status-done' : ''} ${isUrgent ? 'urgent-alert' : ''} ${ticket.is_emergency ? 'emergency-frame' : ''}`;
+    const cardClasses = `ticket-card ${selectedTicket?.id === ticket.id ? 'selected' : ''} ${ticket.status === Status.Abgeschlossen ? 'status-done' : ''} ${isEmergency ? 'urgent-alert' : ''}`;
 
     return (
         <div 
@@ -135,8 +135,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
         >
             <style>{`
                 @keyframes pulse-border {
-                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-                    70% { box-shadow: 0 0 0 4px rgba(220, 53, 69, 0); }
+                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.8); }
+                    70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
                     100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
                 }
                 .ticket-card {
@@ -150,10 +150,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                     position: relative;
                 }
                 .ticket-card.urgent-alert {
-                    animation: pulse-border 2s infinite;
-                }
-                .ticket-card.emergency-frame {
-                    border: 1px solid var(--accent-danger);
+                    animation: pulse-border 1.5s infinite;
+                    border-color: var(--accent-danger) !important;
                 }
                 .ticket-card:hover {
                     transform: translateY(-4px);
@@ -224,6 +222,13 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                     width: 100%;
                     text-align: center;
                     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+                    height: 29px; /* fixed height */
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .action-value-box.priority-high {
+                    background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.3); font-weight: 600;
                 }
                 .date-input-wrapper {
                     position: relative;
@@ -279,7 +284,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
             `}</style>
             
             <div className="card-header">
-                {isUrgent && <span className="urgent-icon" title="Dringend"><ExclamationTriangleIcon /></span>}
+                {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                 <h3 className="card-title">{ticket.title}</h3>
                 {ticket.hasNewNoteFromReporter && <span className="new-note-indicator card-header-indicator" title="Neue Notiz vom Melder"></span>}
             </div>
@@ -305,7 +310,11 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 </div>
                 <div className="action-item">
                     <div className="action-label">Priorität</div>
-                    <Dropdown options={Object.values(Priority)} selected={ticket.priority} onChange={handlePriorityChange} className={priorityClasses[ticket.priority]} />
+                     {isEmergency ? (
+                        <div className="action-value-box priority-high">Notfall</div>
+                    ) : (
+                        <Dropdown options={Object.values(Priority)} selected={ticket.priority} onChange={handlePriorityChange} className={priorityClasses[ticket.priority]} />
+                    )}
                 </div>
                 <div className="action-item">
                     <div className="action-label">Status</div>

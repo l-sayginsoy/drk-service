@@ -95,8 +95,14 @@ const BarChart: React.FC<{ title: string; data: { label: string; value: number }
 
 const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
     const [bereichChartView, setBereichChartView] = useState<'anzahl' | 'quote'>('anzahl');
-    const [reportFilters, setReportFilters] = useState({
-        timeRange: '30d', // '7d', '30d', '90d', 'all'
+    // Fix: Add explicit types to the state to prevent incorrect type inference.
+    const [reportFilters, setReportFilters] = useState<{
+        timeRange: '7d' | '30d' | '90d' | 'all';
+        area: string;
+        status: string;
+        technician: string;
+    }>({
+        timeRange: '30d',
         area: 'Alle',
         status: 'Alle',
         technician: 'Alle',
@@ -106,18 +112,18 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
     const filteredTickets = useMemo(() => {
         return tickets.filter(ticket => {
-            const today = new Date(2026, 1, 7); // Fixed truncated line
+            const today = new Date(2026, 1, 7);
             today.setHours(0,0,0,0);
 
             if (reportFilters.timeRange !== 'all') {
                 const entryDate = parseGermanDate(ticket.entryDate);
                 if (!entryDate) return false;
                 
-                // Fix: Allow TypeScript to infer a more specific type for `days` to ensure values are always numbers.
-                const days = { '7d': 7, '30d': 30, '90d': 90 };
+                // Fix: Correctly define the 'days' object type to ensure type safety.
+                const days: Record<'7d' | '30d' | '90d', number> = { '7d': 7, '30d': 30, '90d': 90 };
                 const cutOffDate = new Date(today);
-                cutOffDate.setDate(today.getDate() - days[reportFilters.timeRange as '7d'|'30d'|'90d']);
-                // FIX: Use .getTime() for explicit date comparison to avoid type errors in strict mode.
+                // Fix: Using a strongly-typed state for `reportFilters` removes the need for casting.
+                cutOffDate.setDate(today.getDate() - days[reportFilters.timeRange]);
                 if (entryDate.getTime() < cutOffDate.getTime()) return false;
             }
 
@@ -137,8 +143,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         let avgResolutionTime = 0;
         const resolvedTickets = filteredTickets.filter(t => t.completionDate && t.entryDate);
         if (resolvedTickets.length > 0) {
-            // FIX: Explicitly type totalTime as a number to avoid potential type inference issues.
-            // Fix: Add explicit type for the accumulator `acc` to ensure it's treated as a number.
+            // Fix: Ensure accumulator `acc` is typed as a number.
             const totalTime: number = resolvedTickets.reduce((acc: number, t) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
@@ -147,6 +152,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 }
                 return acc;
             }, 0);
+            // Fix: Remove redundant Number() casts as operands are already numbers.
             avgResolutionTime = totalTime / resolvedTickets.length / (1000 * 60 * 60 * 24); // in days
         }
 
