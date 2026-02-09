@@ -34,8 +34,19 @@ const parseGermanDate = (dateStr: string): Date | null => {
     return null;
 };
 
+// ADD THIS HELPER for Safari compatibility
+const parseISODate = (dateStr: string | undefined): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        // new Date(year, monthIndex, day)
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    return null;
+}
+
 const getFutureDateInGermanFormat = (days: number): string => {
-    const today = new Date('2026-02-07');
+    const today = new Date(2026, 1, 7); // February is month 1. Changed for Safari.
     today.setDate(today.getDate() + days);
     return today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
@@ -82,12 +93,13 @@ const App: React.FC = () => {
   // --- Core App Logic Effects ---
   // Maintenance Scheduler Simulation
   useEffect(() => {
-    const today = new Date('2026-02-07');
+    const today = new Date(2026, 1, 7); // Changed for Safari
     today.setHours(0,0,0,0);
     const todayStr = today.toISOString().split('T')[0];
     
     const duePlans = maintenancePlans.filter(plan => {
-        const lastGenerated = new Date(plan.lastGenerated);
+        const lastGenerated = parseISODate(plan.lastGenerated); // Changed for Safari
+        if (!lastGenerated) return false;
         lastGenerated.setDate(lastGenerated.getDate() + plan.intervalDays);
         return lastGenerated <= today;
     });

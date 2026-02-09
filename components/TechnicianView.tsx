@@ -26,7 +26,7 @@ const parseGermanDate = (dateStr: string | undefined): Date | null => {
 const TechnicianView: React.FC<TechnicianViewProps> = ({ tickets, technicians, onTechnicianSelect, onFilter }) => {
 
     const { totalOverdue, sortedTechnicians, performanceRanking } = useMemo(() => {
-        const today = new Date('2026-02-07');
+        const today = new Date(2026, 1, 7); // Changed for Safari
         
         const totalOverdue = tickets.filter(t => t.status === Status.Ueberfaellig).length;
 

@@ -106,7 +106,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
     const filteredTickets = useMemo(() => {
         return tickets.filter(ticket => {
-            const today = new Date('2026-02-07');
+            const today = new Date(2026, 1, 7); // Changed for Safari
             let startDate: Date | null = null;
 
             if (reportFilters.timeRange !== 'all') {
@@ -119,7 +119,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             // The filter applies to the entry date.
             if (startDate) {
                 const entryDate = parseGermanDate(ticket.entryDate);
-                const currentDay = new Date('2026-02-07');
+                const currentDay = new Date(2026, 1, 7);
                 if (!entryDate || entryDate < startDate || entryDate > currentDay) {
                     return false;
                 }
