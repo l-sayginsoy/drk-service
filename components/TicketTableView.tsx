@@ -28,6 +28,14 @@ interface GroupedTickets {
 
 type ProcessedTickets = FlatTickets | GroupedTickets;
 
+const isUrgent = (ticket: Ticket) => !!ticket.is_emergency || ticket.status === Status.Ueberfaellig;
+
+const ExclamationTriangleIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+);
+
 const StatusPill: React.FC<{ status: Status }> = ({ status }) => (
     <span 
         className="status-pill"
@@ -84,8 +92,25 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
 
     const processedTickets: ProcessedTickets = useMemo(() => {
         let sortableItems = [...tickets];
+
+        // Primary sort: always put urgent tickets first
+        sortableItems.sort((a, b) => {
+            const aIsUrgent = isUrgent(a);
+            const bIsUrgent = isUrgent(b);
+            if (aIsUrgent !== bIsUrgent) {
+                return aIsUrgent ? -1 : 1;
+            }
+            return 0; // Keep original order if urgency is the same, secondary sort will apply next
+        });
+        
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
+                // Keep urgent tickets pinned at the top regardless of other sorting
+                const aIsUrgent = isUrgent(a);
+                const bIsUrgent = isUrgent(b);
+                if (aIsUrgent && !bIsUrgent) return -1;
+                if (!aIsUrgent && bIsUrgent) return 1;
+
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 if (sortConfig.key === 'entryDate' || sortConfig.key === 'dueDate') {
@@ -178,29 +203,39 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
         </th>
     );
 
-     const renderTicketRow = (ticket: Ticket) => (
-        <tr key={ticket.id} onClick={() => onSelectTicket(ticket)} className={(selectedTicketIds.includes(ticket.id) || selectedTicket?.id === ticket.id) ? 'selected' : ''}>
-            <td className="checkbox-cell" onClick={e => e.stopPropagation()}>
-               <input type="checkbox" checked={selectedTicketIds.includes(ticket.id)} onChange={e => handleSelectOne(e, ticket.id)} />
-            </td>
-            <td>
-              <div className="ticket-id-cell">
-                {ticket.id}
-                {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
-              </div>
-            </td>
-            <td>
-                <div className="ticket-title">{ticket.title}</div>
-                <small style={{color: 'var(--text-muted)'}}>{ticket.location}</small>
-            </td>
-            <td>{ticket.area}</td>
-            <td>{formatTechnicianName(ticket.technician)}</td>
-            <td><StatusPill status={ticket.status} /></td>
-            <td><PriorityPill priority={ticket.priority} /></td>
-            <td>{ticket.entryDate}</td>
-            <td>{ticket.dueDate}</td>
-        </tr>
-    );
+     const renderTicketRow = (ticket: Ticket) => {
+         const urgent = isUrgent(ticket);
+         const rowClasses = [
+            (selectedTicketIds.includes(ticket.id) || selectedTicket?.id === ticket.id) ? 'selected' : '',
+            urgent ? 'urgent-alert' : '',
+            ticket.is_emergency ? 'emergency-frame' : ''
+         ].filter(Boolean).join(' ');
+
+        return (
+            <tr key={ticket.id} onClick={() => onSelectTicket(ticket)} className={rowClasses}>
+                <td className="checkbox-cell" onClick={e => e.stopPropagation()}>
+                   <input type="checkbox" checked={selectedTicketIds.includes(ticket.id)} onChange={e => handleSelectOne(e, ticket.id)} />
+                </td>
+                <td>
+                  <div className="ticket-id-cell">
+                    {urgent && <span className="urgent-icon" title="Dringend"><ExclamationTriangleIcon /></span>}
+                    {ticket.id}
+                    {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
+                  </div>
+                </td>
+                <td>
+                    <div className="ticket-title">{ticket.title}</div>
+                    <small style={{color: 'var(--text-muted)'}}>{ticket.location}</small>
+                </td>
+                <td>{ticket.area}</td>
+                <td>{formatTechnicianName(ticket.technician)}</td>
+                <td><StatusPill status={ticket.status} /></td>
+                <td><PriorityPill priority={ticket.priority} /></td>
+                <td>{ticket.entryDate}</td>
+                <td>{ticket.dueDate}</td>
+            </tr>
+        );
+     }
 
     const noTicketsRow = (
          <tr>
@@ -246,6 +281,11 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
     return (
         <div className="table-view-container">
             <style>{`
+                 @keyframes pulse-border {
+                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5); }
+                    70% { box-shadow: 0 0 0 4px rgba(220, 53, 69, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+                }
                 .table-view-container {
                   background-color: var(--bg-secondary);
                   border: 1px solid var(--border);
@@ -306,6 +346,19 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 .ticket-table tbody tr.selected:hover {
                     background-color: var(--border-active);
                 }
+                .ticket-table tbody tr.urgent-alert {
+                    animation: pulse-border 2s infinite;
+                    background-color: rgba(220, 53, 69, 0.05);
+                }
+                .ticket-table tbody tr.urgent-alert:hover {
+                    background-color: rgba(220, 53, 69, 0.1);
+                }
+                .ticket-table tbody tr.emergency-frame {
+                    box-shadow: inset 4px 0 0 0 var(--accent-danger);
+                }
+                .ticket-table tbody tr.emergency-frame:hover {
+                    background-color: rgba(220, 53, 69, 0.1) !important;
+                }
                 .ticket-table tbody tr:not(.selected):hover {
                   background-color: var(--bg-tertiary);
                 }
@@ -314,6 +367,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     align-items: center;
                     gap: 0.75rem;
                 }
+                .urgent-icon { color: var(--accent-danger); }
                 .ticket-title {
                     font-weight: 500;
                     color: var(--text-primary);

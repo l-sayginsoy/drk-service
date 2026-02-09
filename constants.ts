@@ -15,6 +15,7 @@ export const MOCK_TICKETS: Ticket[] = [
     priority: Priority.Hoch,
     categoryId: 'cat-gebaeudetechnik',
     assetId: 'asset-heizung-a',
+    is_emergency: true,
     description: "Kompletter Heizungsausfall im Wohnhaus A. Bewohner frieren. Benötigen sofortige Entsendung eines Technikers. Höchste Priorität!",
     notes: ["Sofortige Eskalation an alle verfügbaren Techniker. (Admin am 06.02.2026, 08:15)"]
   },
@@ -30,6 +31,7 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Heiko Saupert',
     priority: Priority.Mittel,
+    is_emergency: false,
     categoryId: 'cat-komfort',
     description: "Der Wasserhahn am Hauptwaschbecken schließt nicht mehr richtig und es geht permanent Wasser verloren.",
     notes: []
@@ -304,7 +306,7 @@ export const STATUSES = ['Alle', 'Offen', 'In Arbeit', 'Überfällig', 'Abgeschl
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
     appName: "Haustechnik Service",
-    logoUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC-U3g2-q-P6AAAAAElFTkSuQmCC",
+    logoUrl: "/assets/drk-logo.png",
     defaultPriority: Priority.Mittel,
     dueDateRules: {
         [Priority.Hoch]: 2,
@@ -317,10 +319,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
         showAdminLogin: true,
     },
     ticketCategories: [
-        { id: 'cat-sicherheit', name: 'Sicherheit' },
-        { id: 'cat-komfort', name: 'Komfort' },
-        { id: 'cat-it', name: 'IT-Infrastruktur' },
-        { id: 'cat-gebaeudetechnik', name: 'Gebäudetechnik' },
+        { id: 'cat-sicherheit', name: 'Sicherheit', default_priority: Priority.Hoch },
+        { id: 'cat-komfort', name: 'Komfort', default_priority: Priority.Niedrig },
+        { id: 'cat-it', name: 'IT-Infrastruktur', default_priority: Priority.Mittel },
+        { id: 'cat-gebaeudetechnik', name: 'Gebäudetechnik', default_priority: Priority.Mittel },
     ],
     slaMatrix: [
         { id: 'sla-1', categoryId: 'cat-sicherheit', priority: Priority.Hoch, responseTimeHours: 4 },

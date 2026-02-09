@@ -207,7 +207,7 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             }
             .note-textarea-compact:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
             
-            .add-note-btn-compact {
+            .add-note-btn-compact, .admin-action-btn {
                 width: 100%; padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 500;
                 font-size: 0.85rem; cursor: pointer;
                 border: 1px solid transparent; /* Prevent layout shift */
@@ -228,6 +228,15 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             .add-note-btn-compact:hover:not(:disabled) {
                 opacity: 0.9;
             }
+            .admin-action-btn {
+                background-color: var(--accent-danger);
+                color: white;
+            }
+            .admin-action-btn.is-emergency {
+                background-color: var(--bg-tertiary);
+                color: var(--text-secondary);
+                border-color: var(--border);
+            }
             
             .photo-gallery { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
             .photo-thumbnail { width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
@@ -244,6 +253,17 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                 <p className="detail-label-compact">Betreff</p>
                 <p className="detail-subject-text">{ticket.title}</p>
             </div>
+
+            {currentUser?.role === Role.Admin && (
+              <div className="detail-group">
+                <button
+                  className={`admin-action-btn ${ticket.is_emergency ? 'is-emergency' : ''}`}
+                  onClick={() => onUpdateTicket({ ...ticket, is_emergency: !ticket.is_emergency })}
+                >
+                  {ticket.is_emergency ? 'Notfall-Markierung aufheben' : 'Als Notfall markieren'}
+                </button>
+              </div>
+            )}
 
             <div className="auftrag-grid">
                 <div className="grid-item">

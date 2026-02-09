@@ -120,6 +120,17 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
     const renderProzesseTab = () => (
         <>
             <div className="settings-section">
+                <div className="settings-section-header">
+                    <h3 className="settings-section-title">App Name</h3>
+                </div>
+                <div className="settings-section-body">
+                    <div className="form-group">
+                        <label>Der hier festgelegte Name wird im Portal angezeigt.</label>
+                        <input type="text" value={appSettings.appName} onChange={e => setAppSettings(prev => ({...prev, appName: e.target.value}))} className="form-group-input" />
+                    </div>
+                </div>
+            </div>
+            <div className="settings-section">
                 <div className="settings-section-header"><h3 className="settings-section-title">Ticket-Kategorien</h3></div>
                 <div className="settings-section-body">
                     {appSettings.ticketCategories.map(cat => (
@@ -241,7 +252,7 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                 .settings-view { padding-top: 1.5rem; max-width: 1200px; margin: 0 auto; }
                 .settings-header { margin-bottom: 2rem; }
                 .settings-title { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
-                .settings-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+                .settings-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2rem; flex-wrap: wrap; }
                 .tab-btn { background: none; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 500; cursor: pointer; color: var(--text-secondary); border-bottom: 2px solid transparent; transition: var(--transition-smooth); }
                 .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent-primary); }
                 .tab-content { animation: fadeIn 0.3s ease; }
@@ -254,6 +265,7 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                 .settings-section-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 
                 /* Form & List Styles */
+                .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
                 .form-group-input, .form-group-select { width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); font-size: 0.95rem; color: var(--text-primary); transition: var(--transition-smooth); }
                 .form-group-input:focus, .form-group-select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
                 .list-item { display: flex; gap: 0.5rem; align-items: center; }

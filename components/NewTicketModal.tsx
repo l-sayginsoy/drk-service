@@ -3,7 +3,7 @@ import { Ticket, Priority, User, AppSettings } from '../types';
 
 interface NewTicketModalProps {
   onClose: () => void;
-  onSave: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => void;
+  onSave: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }) => void;
   locations: string[];
   technicians: User[];
   appSettings: AppSettings;
@@ -24,7 +24,6 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, locati
   const [reporter, setReporter] = useState('');
   const [dueDate, setDueDate] = useState(getFutureDateString(7)); // Default due date 7 days from now
   const [technician, setTechnician] = useState(technicians[0]?.name || '');
-  const [priority, setPriority] = useState<Priority>(Priority.Mittel);
   const [description, setDescription] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,7 +44,6 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, locati
       reporter,
       dueDate: formattedDueDate,
       technician,
-      priority,
       categoryId,
       description,
       notes: [],
@@ -170,16 +168,10 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, locati
                 <label htmlFor="location">Ort / Raum</label>
                 <input id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} />
             </div>
-            <div className="form-group">
+            <div className="form-group full-width">
                 <label htmlFor="category">Kategorie</label>
                 <select id="category" value={categoryId} onChange={e => setCategoryId(e.target.value)} required>
                     {appSettings.ticketCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-            </div>
-            <div className="form-group">
-                <label htmlFor="priority">Priorität</label>
-                <select id="priority" value={priority} onChange={e => setPriority(e.target.value as Priority)}>
-                    {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
             </div>
              <div className="form-group">
@@ -187,7 +179,7 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, locati
                 <input id="reporter" type="text" value={reporter} onChange={e => setReporter(e.target.value)} />
             </div>
             <div className="form-group">
-                <label htmlFor="dueDate">Fällig bis</label>
+                <label htmlFor="dueDate">Fällig bis (wird ggf. automatisch angepasst)</label>
                 <input id="dueDate" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required />
             </div>
             <div className="form-group full-width">

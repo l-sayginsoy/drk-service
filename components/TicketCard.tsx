@@ -11,6 +11,12 @@ interface TicketCardProps {
   selectedTicket: Ticket | null;
 }
 
+const ExclamationTriangleIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+);
+
 const formatTechnicianName = (name: string) => {
     const parts = name.split(' ');
     if (parts.length > 1) {
@@ -100,6 +106,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
     };
 
     const technicianOptions = ['N/A', ...TECHNICIANS_DATA.map(t => t.name)];
+    
+    const isUrgent = !!ticket.is_emergency || ticket.status === Status.Ueberfaellig;
 
     const Dropdown: React.FC<{ 
         options: string[], 
@@ -115,7 +123,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
         </div>
     );
 
-    const cardClasses = `ticket-card ${selectedTicket?.id === ticket.id ? 'selected' : ''} ${ticket.status === Status.Abgeschlossen ? 'status-done' : ''}`;
+    const cardClasses = `ticket-card ${selectedTicket?.id === ticket.id ? 'selected' : ''} ${ticket.status === Status.Abgeschlossen ? 'status-done' : ''} ${isUrgent ? 'urgent-alert' : ''} ${ticket.is_emergency ? 'emergency-frame' : ''}`;
 
     return (
         <div 
@@ -126,6 +134,11 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
             onDragEnd={handleDragEnd}
         >
             <style>{`
+                @keyframes pulse-border {
+                    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+                    70% { box-shadow: 0 0 0 4px rgba(220, 53, 69, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+                }
                 .ticket-card {
                     background: var(--bg-secondary);
                     border-radius: var(--radius-md);
@@ -135,6 +148,12 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
                     padding: 1rem 1.25rem;
                     position: relative;
+                }
+                .ticket-card.urgent-alert {
+                    animation: pulse-border 2s infinite;
+                }
+                .ticket-card.emergency-frame {
+                    border: 1px solid var(--accent-danger);
                 }
                 .ticket-card:hover {
                     transform: translateY(-4px);
@@ -176,6 +195,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 .card-header-indicator {
                     margin-top: 0.5rem;
                 }
+                .urgent-icon { color: var(--accent-danger); margin-left: -0.25rem; }
                 
                 .card-actions-grid {
                     display: grid;
@@ -259,6 +279,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
             `}</style>
             
             <div className="card-header">
+                {isUrgent && <span className="urgent-icon" title="Dringend"><ExclamationTriangleIcon /></span>}
                 <h3 className="card-title">{ticket.title}</h3>
                 {ticket.hasNewNoteFromReporter && <span className="new-note-indicator card-header-indicator" title="Neue Notiz vom Melder"></span>}
             </div>

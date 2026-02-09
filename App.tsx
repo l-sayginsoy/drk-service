@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Ticket, Status, Priority, Role, GroupableKey, User, Location, AppSettings, Asset, MaintenancePlan, AvailabilityStatus } from './types';
+import { Ticket, Status, Priority, Role, GroupableKey, User, Location, AppSettings, Asset, MaintenancePlan, AvailabilityStatus, RoutingRule } from './types';
 import { MOCK_TICKETS, MOCK_USERS, MOCK_LOCATIONS, STATUSES, DEFAULT_APP_SETTINGS, MOCK_ASSETS, MOCK_MAINTENANCE_PLANS } from './constants';
 
 import Sidebar from './components/Sidebar';
@@ -57,6 +57,44 @@ const getFormattedDate = () => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+};
+
+const assignTicket = (
+    ticketData: { title: string; description?: string; },
+    users: User[],
+    tickets: Ticket[],
+    routingRules: RoutingRule[]
+): string => {
+    let assignedTechnician = 'N/A';
+    const fullText = `${ticketData.title} ${ticketData.description || ''}`.toLowerCase();
+    
+    // Find a rule that matches keywords in the ticket's title or description
+    const matchedRule = routingRules.find(rule => 
+        rule.keyword.toLowerCase().split(',').some(kw => fullText.includes(kw.trim()))
+    );
+
+    if (matchedRule) {
+        // Find all active and available technicians with the required skill
+        const skilledTechnicians = users.filter(u => 
+            u.role === Role.Technician && 
+            u.isActive && 
+            u.availability.status === AvailabilityStatus.Available && 
+            u.skills.includes(matchedRule.skill)
+        );
+        
+        if (skilledTechnicians.length > 0) {
+            // Calculate current load for each skilled technician
+            const techniciansWithLoad = skilledTechnicians.map(tech => ({
+                ...tech,
+                load: tickets.filter(t => t.technician === tech.name && t.status !== Status.Abgeschlossen).length
+            }));
+            
+            // Sort by load, ascending, to find the least busy one
+            techniciansWithLoad.sort((a, b) => a.load - b.load);
+            assignedTechnician = techniciansWithLoad[0].name;
+        }
+    }
+    return assignedTechnician;
 };
 
 const App: React.FC = () => {
@@ -141,40 +179,37 @@ const App: React.FC = () => {
     if (selectedTicket && selectedTicket.id === updatedTicket.id) setSelectedTicket(updatedTicket);
   };
 
-  const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status'>, silent = false): string => {
-    // --- Intelligent Logic ---
-    let assignedTechnician = 'N/A';
-    // 1. Skill-based Routing
-    const fullText = `${newTicketData.title} ${newTicketData.description || ''}`.toLowerCase();
-    const matchedRule = appSettings.routingRules.find(rule => 
-        rule.keyword.toLowerCase().split(',').some(kw => fullText.includes(kw.trim()))
-    );
-    if(matchedRule) {
-        const availableTechnicians = users.filter(u => u.role === Role.Technician && u.isActive && u.availability.status === AvailabilityStatus.Available && u.skills.includes(matchedRule.skill));
-        if(availableTechnicians.length > 0) {
-            assignedTechnician = availableTechnicians[0].name; // Simple assignment, could be round-robin
-        }
-    }
-    // 2. SLA-based Due Date
-    const slaRule = appSettings.slaMatrix.find(r => r.categoryId === newTicketData.categoryId && r.priority === newTicketData.priority);
+  const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }, silent = false): string => {
+    // --- INTELLIGENT AUTOMATION LOGIC ---
+
+    // 1. Smart Priority: Determine priority based on category
+    const category = appSettings.ticketCategories.find(c => c.id === newTicketData.categoryId);
+    const determinedPriority = newTicketData.priority || category?.default_priority || appSettings.defaultPriority;
+
+    // 2. Load-Balancing Technician Assignment
+    const assignedTechnician = assignTicket(newTicketData, users, tickets, appSettings.routingRules);
+
+    // 3. SLA-based Due Date Calculation
+    const slaRule = appSettings.slaMatrix.find(r => r.categoryId === newTicketData.categoryId && r.priority === determinedPriority);
     const dueDate = new Date();
     if (slaRule) {
         dueDate.setHours(dueDate.getHours() + slaRule.responseTimeHours);
     } else {
-        dueDate.setDate(dueDate.getDate() + (appSettings.dueDateRules[newTicketData.priority] || 7));
+        dueDate.setDate(dueDate.getDate() + (appSettings.dueDateRules[determinedPriority] || 7));
     }
     const formattedDueDate = dueDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     const newTicket: Ticket = {
-      ...newTicketData,
+      ...(newTicketData as Omit<Ticket, 'id' | 'entryDate' | 'status'>),
       id: `M-${Math.floor(Math.random() * 10000) + 30000}`,
       entryDate: new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       status: Status.Offen,
-      priority: newTicketData.priority || appSettings.defaultPriority,
+      priority: determinedPriority,
       technician: assignedTechnician,
       dueDate: formattedDueDate,
       notes: newTicketData.notes || [],
       hasNewNoteFromReporter: false,
+      is_emergency: false,
     };
 
     setTickets(prevTickets => [newTicket, ...prevTickets]);

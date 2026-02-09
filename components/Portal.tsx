@@ -20,7 +20,7 @@ interface PortalProps {
   onLogin: (user: User) => void;
   tickets: Ticket[];
   locations: string[];
-  onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
+  onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }) => string;
   onUpdateTicket: (ticket: Ticket) => void;
   users: User[];
 }
@@ -82,7 +82,7 @@ const compressImage = (file: File): Promise<string> => {
 
 const NewTicketForm: React.FC<{
     locations: string[];
-    onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
+    onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }) => string;
     setView: (view: PortalView) => void;
     setNewlyCreatedTicketId: (id: string) => void;
     appSettings: AppSettings;
@@ -92,17 +92,13 @@ const NewTicketForm: React.FC<{
             const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
             if (savedDraft) {
                 const draft = JSON.parse(savedDraft);
-                // Ensure default priority from settings is used if not in draft
-                if (!draft.priority) {
-                    draft.priority = appSettings.defaultPriority;
-                }
                 return draft;
             }
         } catch (e) { console.error("Could not load draft", e); }
         
         return {
             reporter: '', area: locations[0] || '', location: '', title: '',
-            priority: appSettings.defaultPriority, description: '', wunschTermin: '',
+            description: '', wunschTermin: '',
             reporterEmail: '', photos: [] as string[],
             categoryId: appSettings.ticketCategories[0]?.id || ''
         };
@@ -179,7 +175,7 @@ const NewTicketForm: React.FC<{
             title: formState.title, area: formState.area, location: formState.location,
             reporter: formState.reporter, dueDate: '', // Will be auto-calculated
             technician: 'N/A',
-            priority: formState.priority, description: formState.description,
+            description: formState.description,
             categoryId: formState.categoryId,
             wunschTermin: formattedWunschTermin, photos: formState.photos, notes: [],
             reporterEmail: formState.reporterEmail,
@@ -215,12 +211,6 @@ const NewTicketForm: React.FC<{
                         {appSettings.ticketCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                      {errors.categoryId && <span className="error-text">{errors.categoryId}</span>}
-                </div>
-                <div className="form-group">
-                    <label>Priorität*</label>
-                    <select value={formState.priority} onChange={e => setFormState(p => ({...p, priority: e.target.value as Priority}))}>
-                        {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
                 </div>
                 <div className="form-group">
                     <label>Betreff*</label>
@@ -498,7 +488,7 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
         return (
              <>
                 <div className="portal-header">
-                    <img src={appSettings.logoUrl} alt="App Logo" className="portal-logo" />
+                    <img src="/assets/drk-logo.png" alt="App Logo" className="portal-logo" />
                     <h1 className="portal-title">{appSettings.appName}</h1>
                     <p className="portal-subtitle-org">DRK Kreisverband Vorderpfalz e. V.</p>
                 </div>

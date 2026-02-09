@@ -44,6 +44,7 @@ export interface Location {
 export interface TicketCategory {
   id: string;
   name: string;
+  default_priority?: Priority;
 }
 
 export interface SLARule {
@@ -136,6 +137,7 @@ export interface Ticket {
   notes?: string[];
   reporterEmail?: string;
   hasNewNoteFromReporter?: boolean;
+  is_emergency?: boolean;
   costs?: {
     laborHours: number;
     materials: number;
