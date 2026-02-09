@@ -113,7 +113,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 const entryDate = parseGermanDate(ticket.entryDate);
                 if (!entryDate) return false;
                 
-                const days: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 };
+                // Fix: Allow TypeScript to infer a more specific type for `days` to ensure values are always numbers.
+                const days = { '7d': 7, '30d': 30, '90d': 90 };
                 const cutOffDate = new Date(today);
                 cutOffDate.setDate(today.getDate() - days[reportFilters.timeRange as '7d'|'30d'|'90d']);
                 // FIX: Use .getTime() for explicit date comparison to avoid type errors in strict mode.
@@ -137,7 +138,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const resolvedTickets = filteredTickets.filter(t => t.completionDate && t.entryDate);
         if (resolvedTickets.length > 0) {
             // FIX: Explicitly type totalTime as a number to avoid potential type inference issues.
-            const totalTime: number = resolvedTickets.reduce((acc, t) => {
+            // Fix: Add explicit type for the accumulator `acc` to ensure it's treated as a number.
+            const totalTime: number = resolvedTickets.reduce((acc: number, t) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
                 if (entry && completion) {

@@ -121,11 +121,12 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
         <>
             <div className="settings-section">
                 <div className="settings-section-header">
-                    <h3 className="settings-section-title">App Name</h3>
+                    <h3 className="settings-section-title">Allgemein</h3>
                 </div>
                 <div className="settings-section-body">
                     <div className="form-group">
-                        <label>Der hier festgelegte Name wird im Portal angezeigt.</label>
+                        <label>App Name</label>
+                         <p className="form-group-description">Der hier festgelegte Name wird im Portal angezeigt.</p>
                         <input type="text" value={appSettings.appName} onChange={e => setAppSettings(prev => ({...prev, appName: e.target.value}))} className="form-group-input" />
                     </div>
                 </div>
@@ -266,6 +267,7 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
 
                 /* Form & List Styles */
                 .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+                 .form-group-description { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem; }
                 .form-group-input, .form-group-select { width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); font-size: 0.95rem; color: var(--text-primary); transition: var(--transition-smooth); }
                 .form-group-input:focus, .form-group-select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); }
                 .list-item { display: flex; gap: 0.5rem; align-items: center; }

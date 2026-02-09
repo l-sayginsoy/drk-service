@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LayoutDashboardIcon } from './icons/LayoutDashboardIcon';
 import { UserIcon } from './icons/UserIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
-import { CogIcon } from './icons/CogIcon';
+import { SlidersIcon } from './icons/SlidersIcon';
 import { LogoutIcon } from './icons/LogoutIcon';
 import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
 import { Avatar } from './Avatar';
@@ -12,6 +12,7 @@ import { Role, Ticket, Status, AppSettings } from '../types';
 import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { ClipboardIcon } from './icons/ClipboardIcon';
 import { TicketIcon } from './icons/TicketIcon';
 
 
@@ -42,12 +43,12 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
     
     const navItems = [
         { type: 'view', viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
-        { type: 'view', viewName: 'tickets', icon: <TicketIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
+        { type: 'view', viewName: 'tickets', icon: <ClipboardIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
         { type: 'view', viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
         { type: 'action', action: 'newTicket', icon: <DocumentPlusIcon />, label: 'Neues Ticket', requiredRoles: [Role.Admin, Role.Technician], onClick: onNewTicketClick },
-        { type: 'view', viewName: 'settings', icon: <CogIcon />, label: 'Settings', requiredRoles: [Role.Admin] },
+        { type: 'view', viewName: 'settings', icon: <SlidersIcon />, label: 'Settings', requiredRoles: [Role.Admin] },
     ];
 
     const NavItem: React.FC<{viewName: string, icon: React.ReactNode, label: string}> = ({ viewName, icon, label }) => (
