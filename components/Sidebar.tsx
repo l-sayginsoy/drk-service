@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { LayoutDashboardIcon } from './icons/LayoutDashboardIcon';
-import { BuildingOfficeIcon } from './icons/BuildingOfficeIcon';
 import { UserIcon } from './icons/UserIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { CogIcon } from './icons/CogIcon';
@@ -9,13 +8,15 @@ import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
 import { Avatar } from './Avatar';
 import ThemeToggle from './ThemeToggle';
 import { ChevronsLeftRightIcon } from './icons/ChevronsLeftRightIcon';
-import { Role, Ticket, Status } from '../types';
+import { Role, Ticket, Status, AppSettings } from '../types';
 import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { TicketIcon } from './icons/TicketIcon';
 
 
 interface SidebarProps {
+    appSettings: AppSettings;
     isCollapsed: boolean;
     setCollapsed: (isCollapsed: boolean) => void;
     theme: string;
@@ -32,7 +33,7 @@ interface SidebarProps {
 }
 
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, setTheme, currentView, setCurrentView, onLogout, userRole, userName, tickets, onNewTicketClick, onExportPDF, onExportCSV }) => {
+const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapsed, theme, setTheme, currentView, setCurrentView, onLogout, userRole, userName, tickets, onNewTicketClick, onExportPDF, onExportCSV }) => {
     
     const [isExportOpen, setExportOpen] = useState(false);
     const newNotesCount = useMemo(() => {
@@ -41,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
     
     const navItems = [
         { type: 'view', viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
-        { type: 'view', viewName: 'tickets', icon: <BuildingOfficeIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
+        { type: 'view', viewName: 'tickets', icon: <TicketIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
         { type: 'view', viewName: 'reports', icon: <SparklesIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
@@ -126,6 +127,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
                 .sidebar-logo {
                     max-width: 100%;
                     height: auto;
+                    max-height: 50px;
+                    object-fit: contain;
                 }
                 .sidebar-icon-logo {
                     display: none;
@@ -358,12 +361,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setCollapsed, theme, set
             <div className="sidebar-header">
                 <div className="sidebar-logo-container">
                     <img 
-                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-3U3g2-q-P6AAAAAElFTkSuQmCC"
-                        alt="DRK Logo"
+                        src={appSettings.logoUrl}
+                        alt="App Logo"
                         className="sidebar-logo"
                     />
                 </div>
-                <BuildingOfficeIcon className="sidebar-icon-logo" />
+                <TicketIcon className="sidebar-icon-logo" />
                  <button 
                     className="collapse-toggle" 
                     onClick={() => setCollapsed(!isCollapsed)} 

@@ -7,7 +7,7 @@ import { Role, GroupableKey } from '../types';
 interface FilterBarProps {
     filters: any;
     setFilters: React.Dispatch<React.SetStateAction<any>>;
-    areas: Array<{ name: string; count: number }>;
+    locations: Array<{ name: string; count: number }>;
     technicians: string[];
     statuses: string[];
     groupBy: GroupableKey | 'none';
@@ -16,7 +16,7 @@ interface FilterBarProps {
     userRole: Role | null;
 }
 
-const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, technicians, statuses, groupBy, setGroupBy, currentView, userRole }) => {
+const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, locations, technicians, statuses, groupBy, setGroupBy, currentView, userRole }) => {
     
     if (currentView === 'techniker' || currentView === 'reports') {
         return null;
@@ -52,19 +52,17 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, techn
             <select value={value} onChange={(e) => handleFilterChange(name, e.target.value)}>
                 {options.map(opt => {
                     if (typeof opt === 'object' && opt !== null && 'name' in opt) {
-                        // It's an area object
-                        const areaOpt = opt as { name: string; count: number };
+                        const locOpt = opt as { name: string; count: number };
                         return (
                             <option 
-                                key={areaOpt.name} 
-                                value={areaOpt.name}
-                                style={{ color: areaOpt.count === 0 && areaOpt.name !== 'Alle' ? 'var(--text-muted)' : 'inherit' }}
+                                key={locOpt.name} 
+                                value={locOpt.name}
+                                style={{ color: locOpt.count === 0 && locOpt.name !== 'Alle' ? 'var(--text-muted)' : 'inherit' }}
                             >
-                                {areaOpt.name === 'Alle' ? `Alle Bereiche (${areaOpt.count})` : `${areaOpt.name} (${areaOpt.count})`}
+                                {locOpt.name === 'Alle' ? `Alle Bereiche (${locOpt.count})` : `${locOpt.name} (${locOpt.count})`}
                             </option>
                         );
                     }
-                    // It's a string for other filters
                     const strOpt = String(opt);
                     return <option key={strOpt} value={strOpt}>{getDisplayValue(strOpt)}</option>;
                 })}
@@ -76,18 +74,10 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, techn
     const renderFiltersForView = () => {
         switch (currentView) {
             case 'dashboard':
-                return (
-                    <>
-                        <FilterChip label="Bereich" name="area" options={areas} value={filters.area} />
-                        <FilterChip label="Status" name="status" options={statuses} value={filters.status} />
-                        <FilterChip label="Priorität" name="priority" options={PRIORITIES} value={filters.priority} />
-                        {userRole !== Role.Technician && <FilterChip label="Haustechniker" name="technician" options={technicians} value={filters.technician} />}
-                    </>
-                );
             case 'tickets':
                 return (
                     <>
-                        <FilterChip label="Bereich" name="area" options={areas} value={filters.area} />
+                        <FilterChip label="Bereich" name="area" options={locations} value={filters.area} />
                         <FilterChip label="Status" name="status" options={statuses} value={filters.status} />
                         <FilterChip label="Priorität" name="priority" options={PRIORITIES} value={filters.priority} />
                         {userRole !== Role.Technician && <FilterChip label="Haustechniker" name="technician" options={technicians} value={filters.technician} />}
@@ -96,7 +86,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, areas, techn
             case 'erledigt':
                 return (
                     <>
-                        <FilterChip label="Bereich" name="area" options={areas} value={filters.area} />
+                        <FilterChip label="Bereich" name="area" options={locations} value={filters.area} />
                         <FilterChip label="Priorität" name="priority" options={PRIORITIES} value={filters.priority} />
                         {userRole !== Role.Technician && <FilterChip label="Haustechniker" name="technician" options={technicians} value={filters.technician} />}
                     </>

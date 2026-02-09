@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Ticket, Priority, Role, User } from '../types';
+import { Ticket, Priority, Role, User, AppSettings } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { UserIcon } from './icons/UserIcon';
-import { CogIcon } from './icons/CogIcon';
 // FIX: Correctly import TECHNICIANS_DATA
 import { TECHNICIANS_DATA } from '../constants';
 import { CameraIcon } from './icons/CameraIcon';
 import { XIcon } from './icons/XIcon';
 import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
+import { KeyIcon } from './icons/KeyIcon';
 
 const LOCAL_STORAGE_KEY = 'facility-management-tickets';
 const DRAFT_STORAGE_KEY = 'facility-management-ticket-draft';
@@ -16,9 +16,10 @@ const DRAFT_STORAGE_KEY = 'facility-management-ticket-draft';
 type PortalView = 'menu' | 'erfassen' | 'pruefen' | 'status-result' | 'success' | 'techniker-login' | 'admin-login';
 
 interface PortalProps {
+  appSettings: AppSettings;
   onLogin: (user: User) => void;
   tickets: Ticket[];
-  areas: string[];
+  locations: string[];
   onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
   onUpdateTicket: (ticket: Ticket) => void;
   users: User[];
@@ -37,13 +38,10 @@ const formatNote = (note: string) => {
     return <span className="note-main-text">{note}</span>;
 };
 
-const getSuggestedDueDate = (priority: Priority): string => {
+const getSuggestedDueDate = (priority: Priority, rules: Record<Priority, number>): string => {
     const date = new Date();
-    switch (priority) {
-        case Priority.Hoch: date.setDate(date.getDate() + 2); break;
-        case Priority.Mittel: date.setDate(date.getDate() + 5); break;
-        case Priority.Niedrig: date.setDate(date.getDate() + 10); break;
-    }
+    const daysToAdd = rules[priority] || 7; // Default to 7 days if rule not found
+    date.setDate(date.getDate() + daysToAdd);
     return date.toISOString().split('T')[0];
 };
 
@@ -83,21 +81,30 @@ const compressImage = (file: File): Promise<string> => {
 };
 
 const NewTicketForm: React.FC<{
-    areas: string[];
+    locations: string[];
     onAddTicket: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => string;
     setView: (view: PortalView) => void;
     setNewlyCreatedTicketId: (id: string) => void;
-}> = ({ areas, onAddTicket, setView, setNewlyCreatedTicketId }) => {
+    appSettings: AppSettings;
+}> = ({ locations, onAddTicket, setView, setNewlyCreatedTicketId, appSettings }) => {
     const [formState, setFormState] = useState(() => {
         try {
             const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
-            if (savedDraft) return JSON.parse(savedDraft);
+            if (savedDraft) {
+                const draft = JSON.parse(savedDraft);
+                // Ensure default priority from settings is used if not in draft
+                if (!draft.priority) {
+                    draft.priority = appSettings.defaultPriority;
+                }
+                return draft;
+            }
         } catch (e) { console.error("Could not load draft", e); }
         
         return {
-            reporter: '', area: areas[0] || '', location: '', title: '',
-            priority: Priority.Mittel, description: '', wunschTermin: '',
-            reporterEmail: '', photos: [] as string[]
+            reporter: '', area: locations[0] || '', location: '', title: '',
+            priority: appSettings.defaultPriority, description: '', wunschTermin: '',
+            reporterEmail: '', photos: [] as string[],
+            categoryId: appSettings.ticketCategories[0]?.id || ''
         };
     });
 
@@ -120,6 +127,7 @@ const NewTicketForm: React.FC<{
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!formState.area) newErrors.area = 'Bereich ist ein Pflichtfeld.';
+        if (!formState.categoryId) newErrors.categoryId = 'Kategorie ist ein Pflichtfeld.';
         if (formState.title.length < 10) newErrors.title = 'Betreff muss mindestens 10 Zeichen lang sein.';
         if (!formState.location.trim()) newErrors.location = 'Ort ist ein Pflichtfeld.';
         if (!formState.description.trim()) newErrors.description = 'Beschreibung ist ein Pflichtfeld.';
@@ -162,16 +170,17 @@ const NewTicketForm: React.FC<{
 
     const handleSubmit = () => {
         if (!validate()) return;
-        const [year, month, day] = getSuggestedDueDate(formState.priority).split('-');
-        const formattedDueDate = `${day}.${month}.${year}`;
         const formattedWunschTermin = formState.wunschTermin
             ? formState.wunschTermin.split('-').reverse().join('.')
             : undefined;
 
         const newTicketId = onAddTicket({
+            ticketType: 'reactive',
             title: formState.title, area: formState.area, location: formState.location,
-            reporter: formState.reporter, dueDate: formattedDueDate, technician: 'N/A',
+            reporter: formState.reporter, dueDate: '', // Will be auto-calculated
+            technician: 'N/A',
             priority: formState.priority, description: formState.description,
+            categoryId: formState.categoryId,
             wunschTermin: formattedWunschTermin, photos: formState.photos, notes: [],
             reporterEmail: formState.reporterEmail,
         });
@@ -192,13 +201,20 @@ const NewTicketForm: React.FC<{
                 <div className="form-group">
                     <label>Bereich*</label>
                     <select value={formState.area} onChange={e => setFormState(p => ({...p, area: e.target.value}))}>
-                        {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                        {locations.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                 </div>
                  <div className="form-group">
                     <label>Ort / Bereich Detail*</label>
                     <input type="text" placeholder="z.B. Raum 102, Maschine 3" value={formState.location} onChange={e => setFormState(p => ({...p, location: e.target.value}))} />
                     {errors.location && <span className="error-text">{errors.location}</span>}
+                </div>
+                 <div className="form-group">
+                    <label>Kategorie*</label>
+                    <select value={formState.categoryId} onChange={e => setFormState(p => ({...p, categoryId: e.target.value}))}>
+                        {appSettings.ticketCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                     {errors.categoryId && <span className="error-text">{errors.categoryId}</span>}
                 </div>
                 <div className="form-group">
                     <label>Priorität*</label>
@@ -233,10 +249,7 @@ const NewTicketForm: React.FC<{
                                 <button className="portal-btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
                                     Aus Galerie wählen
                                 </button>
-                                {/* C.1 - Hidden input for gallery */}
                                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                                {/* C.2 - Hidden input for camera with 'capture' attribute */}
-                                {/* Note for C.3: The 'capture' attribute works reliably on mobile browsers over HTTPS or on localhost. On desktop or insecure connections, it will likely fall back to a standard file picker. */}
                                 <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
                             </div>
                         )}
@@ -267,7 +280,7 @@ const NewTicketForm: React.FC<{
 };
 
 
-const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, onUpdateTicket, users }) => {
+const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, locations, onAddTicket, onUpdateTicket, users }) => {
   const [view, setView] = useState<PortalView>('menu');
   const [ticketIdInput, setTicketIdInput] = useState('');
   const [foundTicket, setFoundTicket] = useState<Ticket | null>(null);
@@ -350,7 +363,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
   const renderContent = () => {
     switch(view) {
       case 'erfassen':
-        return <NewTicketForm areas={areas} onAddTicket={onAddTicket} setView={setView} setNewlyCreatedTicketId={setNewlyCreatedTicketId} />;
+        return <NewTicketForm locations={locations} onAddTicket={onAddTicket} setView={setView} setNewlyCreatedTicketId={setNewlyCreatedTicketId} appSettings={appSettings} />;
       case 'pruefen':
         return (
           <form onSubmit={handleTicketPruefen}>
@@ -485,15 +498,15 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
         return (
              <>
                 <div className="portal-header">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg-U3g2-q-P6AAAAAElFTkSuQmCC" alt="DRK Logo" className="portal-logo" />
-                    <h1 className="portal-title">Haustechnik Service</h1>
+                    <img src={appSettings.logoUrl} alt="App Logo" className="portal-logo" />
+                    <h1 className="portal-title">{appSettings.appName}</h1>
                     <p className="portal-subtitle-org">DRK Kreisverband Vorderpfalz e. V.</p>
                 </div>
                 <div className="portal-menu">
                     <button className="portal-menu-btn primary" onClick={() => setView('erfassen')}><div className="btn-content"><div className="btn-icon"><PlusIcon /></div><div className="btn-text"><span className="btn-title">Ticket erstellen</span><span className="btn-description">Melden Sie eine neue Störung.</span></div></div></button>
-                    <button className="portal-menu-btn" onClick={() => setView('pruefen')}><div className="btn-content"><div className="btn-icon"><SearchIcon /></div><div className="btn-text"><span className="btn-title">Status prüfen</span><span className="btn-description">Fortschritt eines Tickets prüfen.</span></div></div></button>
-                    <button className="portal-menu-btn" onClick={() => setView('techniker-login')}><div className="btn-content"><div className="btn-icon"><UserIcon /></div><div className="btn-text"><span className="btn-title">Anmeldung Haustechnik</span><span className="btn-description">Login für Techniker.</span></div></div></button>
-                    <button className="portal-menu-btn" onClick={() => setView('admin-login')}><div className="btn-content"><div className="btn-icon"><CogIcon /></div><div className="btn-text"><span className="btn-title">Admin Anmeldung</span><span className="btn-description">Verwaltung des Systems.</span></div></div></button>
+                    {appSettings.portalConfig.showStatus && <button className="portal-menu-btn" onClick={() => setView('pruefen')}><div className="btn-content"><div className="btn-icon"><SearchIcon /></div><div className="btn-text"><span className="btn-title">Status prüfen</span><span className="btn-description">Fortschritt eines Tickets prüfen.</span></div></div></button>}
+                    {appSettings.portalConfig.showTechnicianLogin && <button className="portal-menu-btn" onClick={() => setView('techniker-login')}><div className="btn-content"><div className="btn-icon"><UserIcon /></div><div className="btn-text"><span className="btn-title">Anmeldung Haustechnik</span><span className="btn-description">Login für Techniker.</span></div></div></button>}
+                    {appSettings.portalConfig.showAdminLogin && <button className="portal-menu-btn" onClick={() => setView('admin-login')}><div className="btn-content"><div className="btn-icon"><KeyIcon /></div><div className="btn-text"><span className="btn-title">Admin Anmeldung</span><span className="btn-description">Verwaltung des Systems.</span></div></div></button>}
                 </div>
              </>
         );
@@ -509,7 +522,7 @@ const Portal: React.FC<PortalProps> = ({ onLogin, tickets, areas, onAddTicket, o
                 .portal-box.view-pruefen { max-width: 450px; }
                 .portal-box.view-pruefen form { display: flex; flex-direction: column; flex-grow: 1; }
                 .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
-                .portal-logo { max-width: 250px; height: auto; margin-bottom: 2rem; }
+                .portal-logo { max-width: 250px; height: auto; max-height: 70px; object-fit: contain; margin-bottom: 2rem; }
                 .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; }
                 .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; z-index: 1; }
                 .back-btn:hover { color: var(--text-primary); }

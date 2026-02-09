@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Ticket, Technician, Status, Priority } from '../types';
+// FIX: Replaced non-existent 'Technician' type with the correct 'User' type.
+import { Ticket, User, Status, Priority } from '../types';
 import { Avatar } from './Avatar';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
@@ -7,7 +8,8 @@ import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 
 interface TechnicianViewProps {
     tickets: Ticket[];
-    technicians: Omit<Technician, 'status'>[];
+    // FIX: Changed prop type from 'Technician' to 'User'.
+    technicians: User[];
     onTechnicianSelect: (filters: { technician: string, status: 'Alle' }) => void;
     onFilter: (filters: { status: Status, technician?: string }) => void;
 }

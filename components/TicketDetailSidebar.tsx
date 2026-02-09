@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Ticket, Status, Priority, Role } from '../types';
+// FIX: Import User type to align with App state
+import { Ticket, Status, Priority, Role, User, AppSettings } from '../types';
 import { XIcon } from './icons/XIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { statusColorMap, statusBgColorMap } from '../constants';
@@ -39,10 +40,12 @@ interface TicketDetailSidebarProps {
   onUpdateTicket: (ticket: Ticket) => void;
   technicians: string[];
   statuses: Status[];
-  currentUser: { displayName: string; role: Role } | null;
+  // FIX: Use the correct User type for currentUser prop
+  currentUser: User | null;
+  appSettings: AppSettings;
 }
 
-const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClose, onUpdateTicket, technicians, statuses, currentUser }) => {
+const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClose, onUpdateTicket, technicians, statuses, currentUser, appSettings }) => {
     const [newNote, setNewNote] = useState('');
 
     useEffect(() => {
@@ -79,7 +82,8 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
         const formattedDate = date.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: 'numeric' });
         const formattedTime = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         
-        const noteTextWithMeta = `${newNote.trim()} (${currentUser.displayName} am ${formattedDate}, ${formattedTime})`;
+        // FIX: Use currentUser.name instead of non-existent currentUser.displayName
+        const noteTextWithMeta = `${newNote.trim()} (${currentUser.name} am ${formattedDate}, ${formattedTime})`;
 
         const updatedNotes = [...(ticket.notes || []), noteTextWithMeta];
         const updatedTicket = { ...ticket, notes: updatedNotes };
@@ -98,6 +102,8 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
         [Priority.Mittel]: 'priority-medium',
         [Priority.Niedrig]: 'priority-low',
     };
+    
+    const categoryName = appSettings.ticketCategories.find(c => c.id === ticket.categoryId)?.name || 'N/A';
 
   return (
     <>
@@ -252,12 +258,12 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                     <p className="detail-label-compact">Ort / Raum</p>
                     <p className="detail-value-compact">{ticket.location}</p>
                 </div>
-                <div className="grid-item">
-                    <p className="detail-label-compact">Status</p>
-                    <div className="editable-field-compact" style={{ backgroundColor: statusBgColorMap[ticket.status], borderColor: `var(${statusColorMap[ticket.status]})`, color: `var(${statusColorMap[ticket.status]})` }}>
-                        <span>{ticket.status}</span><ChevronDownIcon />
-                        <select value={ticket.status} onChange={(e) => handleFieldChange('status', e.target.value as Status)}>
-                            {statuses.map(s => <option key={s} value={s}>{s === Status.Abgeschlossen ? 'Abschließen' : s}</option>)}
+                 <div className="grid-item">
+                    <p className="detail-label-compact">Kategorie</p>
+                     <div className="editable-field-compact">
+                        <span>{categoryName}</span><ChevronDownIcon />
+                        <select value={ticket.categoryId} onChange={(e) => handleFieldChange('categoryId', e.target.value)}>
+                            {appSettings.ticketCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -267,6 +273,15 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                         <span>{ticket.priority}</span><ChevronDownIcon />
                         <select value={ticket.priority} onChange={(e) => handleFieldChange('priority', e.target.value as Priority)}>
                             {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                    </div>
+                </div>
+                 <div className="grid-item grid-item-span-2">
+                    <p className="detail-label-compact">Status</p>
+                    <div className="editable-field-compact" style={{ backgroundColor: statusBgColorMap[ticket.status], borderColor: `var(${statusColorMap[ticket.status]})`, color: `var(${statusColorMap[ticket.status]})` }}>
+                        <span>{ticket.status}</span><ChevronDownIcon />
+                        <select value={ticket.status} onChange={(e) => handleFieldChange('status', e.target.value as Status)}>
+                            {statuses.map(s => <option key={s} value={s}>{s === Status.Abgeschlossen ? 'Abschließen' : s}</option>)}
                         </select>
                     </div>
                 </div>

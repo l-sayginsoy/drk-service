@@ -1,8 +1,9 @@
-import { Ticket, Status, Priority, User, Role, AppArea } from './types';
+import { Ticket, Status, Priority, User, Role, Location, AppSettings, AvailabilityStatus, Asset, MaintenancePlan } from './types';
 
 export const MOCK_TICKETS: Ticket[] = [
   {
     id: 'M-31001',
+    ticketType: 'reactive',
     title: 'DRINGEND: Heizungsausfall im Wohnhaus A',
     area: 'Kreisverband',
     location: 'Wohnhaus A, Gesamtes Gebäude',
@@ -12,11 +13,14 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Ueberfaellig,
     technician: 'N/A',
     priority: Priority.Hoch,
+    categoryId: 'cat-gebaeudetechnik',
+    assetId: 'asset-heizung-a',
     description: "Kompletter Heizungsausfall im Wohnhaus A. Bewohner frieren. Benötigen sofortige Entsendung eines Technikers. Höchste Priorität!",
     notes: ["Sofortige Eskalation an alle verfügbaren Techniker. (Admin am 06.02.2026, 08:15)"]
   },
   {
     id: 'M-31002',
+    ticketType: 'reactive',
     title: 'Wasserhahn in der Hauptküche tropft stark',
     area: 'Küche',
     location: 'Spülbereich 1',
@@ -26,11 +30,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Heiko Saupert',
     priority: Priority.Mittel,
+    categoryId: 'cat-komfort',
     description: "Der Wasserhahn am Hauptwaschbecken schließt nicht mehr richtig und es geht permanent Wasser verloren.",
     notes: []
   },
   {
     id: 'M-31003',
+    ticketType: 'reactive',
     title: 'Handlauf im Flur vor Zimmer 205 ist locker',
     area: 'An den Seen',
     location: 'Flur, 2. OG West',
@@ -40,11 +46,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Offen,
     technician: 'N/A',
     priority: Priority.Hoch,
+    categoryId: 'cat-sicherheit',
     description: "Sturzgefahr für Bewohner. Bitte umgehend befestigen.",
     notes: []
   },
   {
     id: 'M-31004',
+    ticketType: 'reactive',
     title: 'WLAN in der Verwaltung ausgefallen',
     area: 'Verwaltung',
     location: 'Gesamter Verwaltungstrakt',
@@ -54,11 +62,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Offen,
     technician: 'Torsten Isselhard',
     priority: Priority.Mittel,
+    categoryId: 'cat-it',
     description: "Seit heute Morgen kein Zugriff auf das WLAN möglich. Router wurde bereits neu gestartet, ohne Erfolg.",
     notes: []
   },
   {
     id: 'M-31005',
+    ticketType: 'reactive',
     title: 'Abfluss von Industriewaschmaschine verstopft',
     area: 'Wäscherei',
     location: 'Maschine 3',
@@ -68,11 +78,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Ueberfaellig,
     technician: 'Ali Najafi',
     priority: Priority.Hoch,
+    categoryId: 'cat-gebaeudetechnik',
     description: "Wasser läuft beim Abpumpen über. Betrieb in der Wäscherei ist stark beeinträchtigt.",
     notes: ["Ali prüft das heute. (Admin am 04.02.2026, 09:00)"]
   },
   {
     id: 'M-31006',
+    ticketType: 'reactive',
     title: 'Deckenleuchte über Tisch 4 flackert',
     area: 'Cafeteria',
     location: 'Sitzbereich',
@@ -82,11 +94,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Offen,
     technician: 'N/A',
     priority: Priority.Niedrig,
+    categoryId: 'cat-komfort',
     description: "",
     notes: []
   },
   {
     id: 'M-31007',
+    ticketType: 'reactive',
     title: 'Pflegebett lässt sich nicht mehr verstellen',
     area: 'An den Seen',
     location: 'Zimmer 312, Bett 1',
@@ -96,11 +110,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Heiko Saupert',
     priority: Priority.Hoch,
+    categoryId: 'cat-sicherheit',
     description: "Die elektrische Höhenverstellung des Pflegebettes reagiert nicht mehr.",
     notes: []
   },
   {
     id: 'M-31008',
+    ticketType: 'reactive',
     title: 'Holzlatte an Parkbank gebrochen',
     area: 'Außenbereich',
     location: 'Nähe Haupteingang',
@@ -110,11 +126,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Ali Najafi',
     priority: Priority.Niedrig,
+    categoryId: 'cat-komfort',
     description: "",
     notes: []
   },
   {
     id: 'M-31009',
+    ticketType: 'reactive',
     title: 'Drucker im Büro der Sozialstation druckt nicht',
     area: 'Sozialstation',
     location: 'Büro EG',
@@ -124,11 +142,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Torsten Isselhard',
     priority: Priority.Mittel,
+    categoryId: 'cat-it',
     description: "Fehlermeldung 'Papierstau', obwohl kein Papier feststeckt.",
     notes: []
   },
   {
     id: 'M-31010',
+    ticketType: 'reactive',
     title: 'Turnusmäßige Prüfung Feuerlöscher',
     area: 'Brandschutz',
     location: 'Alle Flure',
@@ -138,11 +158,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Heiko Saupert',
     priority: Priority.Niedrig,
+    categoryId: 'cat-sicherheit',
     description: "Monatliche Sichtprüfung aller Feuerlöscher im Untergeschoss.",
     notes: []
   },
   {
     id: 'M-31011',
+    ticketType: 'reactive',
     title: 'Steckdose an der Bühne hat Wackelkontakt',
     area: 'Kleiner Saal',
     location: 'Bühne links',
@@ -152,11 +174,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Ueberfaellig,
     technician: 'Torsten Isselhard',
     priority: Priority.Mittel,
+    categoryId: 'cat-sicherheit',
     description: "Strom fällt bei Benutzung aus. Bitte prüfen.",
     notes: []
   },
   {
     id: 'M-31012',
+    ticketType: 'reactive',
     title: 'Fenster zum Terrassenzugang klemmt',
     area: 'Terrasse',
     location: 'Übergang Cafeteria',
@@ -166,12 +190,14 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Offen,
     technician: 'N/A',
     priority: Priority.Niedrig,
+    categoryId: 'cat-komfort',
     description: "Fenster lässt sich nur mit sehr hohem Kraftaufwand öffnen und schließen.",
     notes: []
   },
   {
     id: 'M-31013',
-    title: 'Klimaanlage im Schulungsraum zu kalt eingestellt',
+    ticketType: 'reactive',
+    title: 'Klimaanlage im Schulungsraum zu kalt',
     area: 'Ausbildung',
     location: 'Schulungsraum 2',
     reporter: 'Dozent Herr Weiss',
@@ -180,11 +206,14 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.InArbeit,
     technician: 'Ali Najafi',
     priority: Priority.Mittel,
+    categoryId: 'cat-gebaeudetechnik',
+    assetId: 'asset-klima-server',
     description: "Die Temperatur lässt sich am Thermostat nicht regeln, es ist dauerhaft zu kühl.",
     notes: []
   },
   {
     id: 'M-31014',
+    ticketType: 'reactive',
     title: 'Wand im Aufenthaltsraum neu streichen',
     area: 'An den Seen',
     location: 'Aufenthaltsraum 3. OG',
@@ -194,11 +223,13 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Abgeschlossen,
     technician: 'Heiko Saupert',
     priority: Priority.Niedrig,
+    categoryId: 'cat-komfort',
     completionDate: '04.02.2026',
     notes: ["Farbe wurde geliefert. (HS am 01.02.2026, 14:00)", "Arbeiten abgeschlossen. (HS am 04.02.2026, 16:30)"]
   },
   {
     id: 'M-31015',
+    ticketType: 'reactive',
     title: 'Schwesternrufanlage in Zimmer 101 defekt',
     area: 'Schlosspark',
     location: 'Zimmer 101',
@@ -208,38 +239,102 @@ export const MOCK_TICKETS: Ticket[] = [
     status: Status.Abgeschlossen,
     technician: 'Torsten Isselhard',
     priority: Priority.Hoch,
+    categoryId: 'cat-sicherheit',
     completionDate: '29.01.2026',
     notes: ["Ersatzteil bestellt. (TI am 28.01.2026, 11:00)", "Anlage funktioniert wieder einwandfrei. (TI am 29.01.2026, 09:45)"]
   }
 ];
 
 export const MOCK_USERS: User[] = [
-    { id: 'user-1', name: 'Admin', role: Role.Admin, password: 'admin', isActive: true },
-    { id: 'user-2', name: 'Heiko Saupert', role: Role.Technician, password: '123', isActive: true },
-    { id: 'user-3', name: 'Ali Najafi', role: Role.Technician, password: '123', isActive: true },
-    { id: 'user-4', name: 'Torsten Isselhard', role: Role.Technician, password: '123', isActive: true },
-    { id: 'user-5', name: 'Max Mustermann (Inaktiv)', role: Role.Technician, password: '123', isActive: false },
+    { id: 'user-1', name: 'Admin', role: Role.Admin, password: 'admin', isActive: true, skills: ['all'], availability: { status: AvailabilityStatus.Available, leaveUntil: null } },
+    { id: 'user-2', name: 'Heiko Saupert', role: Role.Technician, password: '123', isActive: true, skills: ['Sanitär', 'Allgemein', 'Schließanlagen'], availability: { status: AvailabilityStatus.Available, leaveUntil: null } },
+    { id: 'user-3', name: 'Ali Najafi', role: Role.Technician, password: '123', isActive: true, skills: ['HLK', 'Klima'], availability: { status: AvailabilityStatus.Available, leaveUntil: null } },
+    { id: 'user-4', name: 'Torsten Isselhard', role: Role.Technician, password: '123', isActive: true, skills: ['Elektrik', 'IT', 'Schwesternruf'], availability: { status: AvailabilityStatus.Available, leaveUntil: null } },
+    { id: 'user-5', name: 'Max Mustermann (Inaktiv)', role: Role.Technician, password: '123', isActive: false, skills: [], availability: { status: AvailabilityStatus.OnLeave, leaveUntil: '2026-03-01' } },
 ];
 
-// FIX: Export TECHNICIANS_DATA to be used across components
 export const TECHNICIANS_DATA: User[] = MOCK_USERS.filter(u => u.role === Role.Technician);
 
-
-export const BEREICH_OPTIONS = ["Schlosspark", "Ebertpark", "Rheinufer", "An den Seen", "Küche", "Cafeteria", "Wäscherei", "Reinigung", "Untergeschoss", "Verwaltung", "Ausbildung", "Kleiner Saal", "Außenbereich", "Terrasse", "Baumhaus", "Kreisverband", "Sozialstation", "Brandschutz", "Sicherheit", "Sonstiges"];
-// FIX: Export AREAS for use in filters, including an "Alle" option.
-export const AREAS = ['Alle', ...BEREICH_OPTIONS];
-export const MOCK_AREAS: AppArea[] = BEREICH_OPTIONS.map((name, index) => ({
-    id: `area-${index + 1}`,
+export const LOCATION_NAMES = ["Schlosspark", "Ebertpark", "Rheinufer", "An den Seen", "Küche", "Cafeteria", "Wäscherei", "Reinigung", "Untergeschoss", "Verwaltung", "Ausbildung", "Kleiner Saal", "Außenbereich", "Terrasse", "Kreisverband", "Sozialstation", "Brandschutz", "Sicherheit", "Sonstiges"];
+export const LOCATIONS_FOR_FILTER = ['Alle', ...LOCATION_NAMES];
+export const MOCK_LOCATIONS: Location[] = LOCATION_NAMES.map((name, index) => ({
+    id: `loc-${index + 1}`,
     name,
     isActive: true,
 }));
 
+export const MOCK_ASSETS: Asset[] = [
+    { 
+        id: 'asset-heizung-a', name: 'Heizungsanlage Wohnhaus A', locationId: 'loc-15',
+        details: { type: 'Heizkessel', manufacturer: 'Viessmann', model: 'Vitodens 300-W', installDate: '2020-09-01' },
+        maintenancePlanId: 'plan-heizung-a', maintenanceHistory: []
+    },
+    { 
+        id: 'asset-aufzug-1', name: 'Aufzug 1 (Hauptgebäude)', locationId: 'loc-1',
+        details: { type: 'Personenaufzug', manufacturer: 'Schindler', model: '5500', installDate: '2018-03-15' },
+        maintenancePlanId: 'plan-aufzug-1', maintenanceHistory: []
+    },
+    { 
+        id: 'asset-klima-server', name: 'Klimaanlage Serverraum', locationId: 'loc-10',
+        details: { type: 'Split-Klimagerät', manufacturer: 'Daikin', model: 'FTXM-R', installDate: '2021-05-20' },
+        maintenancePlanId: 'plan-klima-server', maintenanceHistory: []
+    }
+];
+
+export const MOCK_MAINTENANCE_PLANS: MaintenancePlan[] = [
+    { 
+        id: 'plan-heizung-a', assetId: 'asset-heizung-a', 
+        taskDescription: 'Jährliche Wartung der Heizungsanlage: Brenner reinigen, Druck prüfen, Emissionen messen.', 
+        intervalDays: 365, requiredSkill: 'HLK', ticketPriority: Priority.Mittel, lastGenerated: '2025-09-10'
+    },
+    { 
+        id: 'plan-aufzug-1', assetId: 'asset-aufzug-1', 
+        taskDescription: 'TÜV-Prüfung und Wartung Aufzug 1.', 
+        intervalDays: 180, requiredSkill: 'Aufzugstechnik', ticketPriority: Priority.Hoch, lastGenerated: '2025-11-01'
+    },
+    {
+        id: 'plan-klima-server', assetId: 'asset-klima-server',
+        taskDescription: 'Halbjährliche Wartung Klimaanlage: Filter reinigen, Kühlmittelstand prüfen.',
+        intervalDays: 180, requiredSkill: 'Klima', ticketPriority: Priority.Hoch, lastGenerated: '2025-10-15'
+    }
+];
+
 export const PRIORITIES = ['Alle', 'Hoch', 'Mittel', 'Niedrig'];
 export const STATUSES = ['Alle', 'Offen', 'In Arbeit', 'Überfällig', 'Abgeschlossen'];
 
-// =============================================
-// Centralized Status Color Configuration
-// =============================================
+export const DEFAULT_APP_SETTINGS: AppSettings = {
+    appName: "Haustechnik Service",
+    logoUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAACHCAMAAADa6UewAAABEVBMVEUAAAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AAD/AACTDk3XAAAAW3RSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyEiJCUnKiwsLzEyNjc4OTs8PT4/QUJDREVGR0hKTE5PUlVWWVtcXV5fYGFiY2RlZmdqa2xub3Bzdnp8gIKDh0GL1AAACOpJREFUeNrt3WlXFEkYB+BQQJdICxVExSsoKogLDiCoKAgCgogL7u4u7u4i3d3d3d3d3d198/f7D0gG02gCCTNJvj/f5+CRnZ29r3NOdnb2UoBAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC-U3g2-q-P6AAAAAElFTkSuQmCC",
+    defaultPriority: Priority.Mittel,
+    dueDateRules: {
+        [Priority.Hoch]: 2,
+        [Priority.Mittel]: 5,
+        [Priority.Niedrig]: 10,
+    },
+    portalConfig: {
+        showStatus: true,
+        showTechnicianLogin: true,
+        showAdminLogin: true,
+    },
+    ticketCategories: [
+        { id: 'cat-sicherheit', name: 'Sicherheit' },
+        { id: 'cat-komfort', name: 'Komfort' },
+        { id: 'cat-it', name: 'IT-Infrastruktur' },
+        { id: 'cat-gebaeudetechnik', name: 'Gebäudetechnik' },
+    ],
+    slaMatrix: [
+        { id: 'sla-1', categoryId: 'cat-sicherheit', priority: Priority.Hoch, responseTimeHours: 4 },
+        { id: 'sla-2', categoryId: 'cat-sicherheit', priority: Priority.Mittel, responseTimeHours: 24 },
+        { id: 'sla-3', categoryId: 'cat-komfort', priority: Priority.Hoch, responseTimeHours: 24 },
+        { id: 'sla-4', categoryId: 'cat-it', priority: Priority.Hoch, responseTimeHours: 8 },
+    ],
+    routingRules: [
+        { id: 'route-1', keyword: 'Heizung,Lüftung,Klima', skill: 'HLK' },
+        { id: 'route-2', keyword: 'Wasser,Abfluss,Rohr', skill: 'Sanitär' },
+        { id: 'route-3', keyword: 'Strom,Licht,Sicherung,Steckdose', skill: 'Elektrik' },
+        { id: 'route-4', keyword: 'WLAN,Netzwerk,Drucker', skill: 'IT' },
+    ],
+};
 
 export const statusColorMap: Record<Status, string> = {
   [Status.Offen]: '--text-muted',

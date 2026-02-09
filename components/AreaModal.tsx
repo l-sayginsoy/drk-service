@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AppArea } from '../types';
+// FIX: Import 'Location' to resolve module export error, as AppArea is not a defined type.
+import { Location } from '../types';
 
 interface AreaModalProps {
-  area: Partial<AppArea> | null;
+  area: Partial<Location> | null;
   onClose: () => void;
-  onSave: (area: AppArea) => void;
+  onSave: (area: Location) => void;
 }
 
 const AreaModal: React.FC<AreaModalProps> = ({ area, onClose, onSave }) => {
@@ -22,7 +23,7 @@ const AreaModal: React.FC<AreaModalProps> = ({ area, onClose, onSave }) => {
       alert("Name ist ein Pflichtfeld.");
       return;
     }
-    onSave({ ...(area || {}), name: name.trim() } as AppArea);
+    onSave({ ...(area || {}), name: name.trim() } as Location);
   };
 
   return (
@@ -78,10 +79,10 @@ const AreaModal: React.FC<AreaModalProps> = ({ area, onClose, onSave }) => {
         .btn-primary:hover { opacity: 0.9; }
       `}</style>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <h2>{isNewArea ? 'Neuen Bereich erstellen' : 'Bereich bearbeiten'}</h2>
+        <h2>{isNewArea ? 'Neuen Standort erstellen' : 'Standort bearbeiten'}</h2>
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Name des Bereichs</label>
+            <label htmlFor="name">Name des Standorts</label>
             <input id="name" name="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="form-actions">

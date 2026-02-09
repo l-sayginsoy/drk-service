@@ -1,30 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { User, Role } from '../types';
+import { User, Role, AvailabilityStatus } from '../types';
 
 interface UserModalProps {
   user: Partial<User> | null;
+  allSkills: string[];
   onClose: () => void;
   onSave: (user: User) => void;
 }
 
-const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
-  const [formData, setFormData] = useState<Partial<User>>({
-    name: '',
-    role: Role.Technician,
-    password: '',
-    isActive: true,
-  });
+const UserModal: React.FC<UserModalProps> = ({ user, allSkills, onClose, onSave }) => {
+  const [formData, setFormData] = useState<Partial<User>>({});
+  const [skills, setSkills] = useState('');
 
   useEffect(() => {
     if (user) {
-      setFormData({ ...user, password: '' }); // Don't show existing password
+      setFormData({ ...user, password: '' });
+      setSkills(user.skills?.join(', ') || '');
     } else {
       setFormData({
         name: '',
         role: Role.Technician,
         password: '',
         isActive: true,
+        availability: { status: AvailabilityStatus.Available, leaveUntil: null }
       });
+      setSkills('');
     }
   }, [user]);
 
@@ -34,6 +34,14 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+  
+  const handleAvailabilityChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+          ...prev,
+          availability: { ...(prev.availability || {}), [name]: value } as User['availability']
+      }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +49,8 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
       alert("Name ist ein Pflichtfeld.");
       return;
     }
-    onSave(formData as User);
+    const finalSkills = skills.split(',').map(s => s.trim()).filter(Boolean);
+    onSave({ ...formData, skills: finalSkills } as User);
   };
 
   return (
@@ -61,8 +70,9 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
         .modal-content h2 {
             margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--text-primary);
         }
-        .modal-form { display: flex; flex-direction: column; gap: 1.25rem; }
+        .modal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
         .form-group { display: flex; flex-direction: column; }
+        .full-width { grid-column: 1 / -1; }
         .form-group label {
             margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 500;
             color: var(--text-secondary);
@@ -77,7 +87,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
             box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
         }
         .form-actions {
-            display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;
+            grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;
         }
         .btn {
             padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.9rem;
@@ -98,9 +108,9 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <h2>{isNewUser ? 'Neuen Benutzer erstellen' : 'Benutzer bearbeiten'}</h2>
         <form className="modal-form" onSubmit={handleSubmit}>
-          <div className="form-group">
+          <div className="form-group full-width">
             <label htmlFor="name">Name</label>
-            <input id="name" name="name" type="text" value={formData.name} onChange={handleChange} required />
+            <input id="name" name="name" type="text" value={formData.name || ''} onChange={handleChange} required />
           </div>
           <div className="form-group">
             <label htmlFor="role">Rolle</label>
@@ -109,17 +119,28 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
               <option value={Role.Admin}>Admin</option>
             </select>
           </div>
-          <div className="form-group">
+           <div className="form-group">
             <label htmlFor="password">Passwort</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder={isNewUser ? 'Passwort (optional)' : 'Leer lassen, um nicht zu ändern'}
-            />
+            <input id="password" name="password" type="password" value={formData.password || ''} onChange={handleChange} placeholder={isNewUser ? '' : 'Leer lassen, um nicht zu ändern'} />
           </div>
+          <div className="form-group full-width">
+            <label htmlFor="skills">Skills (Komma-getrennt)</label>
+            <input id="skills" name="skills" type="text" value={skills} onChange={e => setSkills(e.target.value)} list="skills-datalist" placeholder="z.B. Elektrik, Sanitär, HLK" />
+            <datalist id="skills-datalist">
+                {allSkills.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+          <div className="form-group">
+            <label htmlFor="availability-status">Verfügbarkeit</label>
+            <select id="availability-status" name="status" value={formData.availability?.status || ''} onChange={handleAvailabilityChange}>
+              {Object.values(AvailabilityStatus).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="availability-leaveUntil">Abwesend bis</label>
+            <input id="availability-leaveUntil" name="leaveUntil" type="date" value={formData.availability?.leaveUntil || ''} onChange={handleAvailabilityChange} disabled={formData.availability?.status !== AvailabilityStatus.OnLeave} />
+          </div>
+
           <div className="form-actions">
             <button type="button" onClick={onClose} className="btn btn-secondary">Abbrechen</button>
             <button type="submit" className="btn btn-primary">Speichern</button>

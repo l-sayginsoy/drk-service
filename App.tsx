@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Ticket, Status, Priority, Role, GroupableKey, User, AppArea } from './types';
-import { MOCK_TICKETS, MOCK_USERS, MOCK_AREAS, STATUSES } from './constants';
+import { Ticket, Status, Priority, Role, GroupableKey, User, Location, AppSettings, Asset, MaintenancePlan, AvailabilityStatus } from './types';
+import { MOCK_TICKETS, MOCK_USERS, MOCK_LOCATIONS, STATUSES, DEFAULT_APP_SETTINGS, MOCK_ASSETS, MOCK_MAINTENANCE_PLANS } from './constants';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -20,7 +20,10 @@ import SettingsView from './components/SettingsView';
 
 const LOCAL_STORAGE_KEY_TICKETS = 'facility-management-tickets';
 const LOCAL_STORAGE_KEY_USERS = 'facility-management-users';
-const LOCAL_STORAGE_KEY_AREAS = 'facility-management-areas';
+const LOCAL_STORAGE_KEY_LOCATIONS = 'facility-management-locations';
+const LOCAL_STORAGE_KEY_ASSETS = 'facility-management-assets';
+const LOCAL_STORAGE_KEY_PLANS = 'facility-management-plans';
+const LOCAL_STORAGE_KEY_SETTINGS = 'facility-management-settings';
 
 const parseGermanDate = (dateStr: string): Date | null => {
     if (!dateStr || dateStr === 'N/A') return null;
@@ -37,7 +40,6 @@ const getFutureDateInGermanFormat = (days: number): string => {
     return today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// Helper to get date as YYYY-MM-DD for filenames
 const getFormattedDate = () => {
     const date = new Date();
     const year = date.getFullYear();
@@ -46,42 +48,18 @@ const getFormattedDate = () => {
     return `${year}-${month}-${day}`;
 };
 
-
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const savedUser = window.localStorage.getItem('currentUser');
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch (error) {
-      console.error("Could not load user from localStorage", error);
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(window.localStorage.getItem('currentUser') || 'null'));
 
-  const [tickets, setTickets] = useState<Ticket[]>(() => {
-    try {
-      const savedTickets = window.localStorage.getItem(LOCAL_STORAGE_KEY_TICKETS);
-      if (savedTickets) return JSON.parse(savedTickets);
-    } catch (error) { console.error("Konnte Tickets nicht aus dem localStorage laden.", error); }
-    return MOCK_TICKETS;
-  });
+  // --- Main Data State ---
+  const [tickets, setTickets] = useState<Ticket[]>(() => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_TICKETS) || 'null') || MOCK_TICKETS);
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_USERS) || 'null') || MOCK_USERS);
+  const [locations, setLocations] = useState<Location[]>(() => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_LOCATIONS) || 'null') || MOCK_LOCATIONS);
+  const [assets, setAssets] = useState<Asset[]>(() => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_ASSETS) || 'null') || MOCK_ASSETS);
+  const [maintenancePlans, setMaintenancePlans] = useState<MaintenancePlan[]>(() => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PLANS) || 'null') || MOCK_MAINTENANCE_PLANS);
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => ({ ...DEFAULT_APP_SETTINGS, ...JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS) || '{}') }));
 
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      const savedData = window.localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
-      if (savedData) return JSON.parse(savedData);
-    } catch (error) { console.error("Konnte Benutzer nicht aus dem localStorage laden.", error); }
-    return MOCK_USERS;
-  });
-  
-  const [areas, setAreas] = useState<AppArea[]>(() => {
-    try {
-      const savedData = window.localStorage.getItem(LOCAL_STORAGE_KEY_AREAS);
-      if (savedData) return JSON.parse(savedData);
-    } catch (error) { console.error("Konnte Bereiche nicht aus dem localStorage laden.", error); }
-    return MOCK_AREAS;
-  });
-
+  // --- UI State ---
   const [filters, setFilters] = useState({ area: 'Alle', technician: 'Alle', priority: 'Alle', status: 'Alle', search: '' });
   const [groupBy, setGroupBy] = useState<GroupableKey | 'none'>('none');
   const [currentView, setCurrentView] = useState('dashboard');
@@ -91,113 +69,108 @@ const App: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
 
+  // --- Effects to persist state ---
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
-  useEffect(() => {
-    try {
-        if (currentUser) window.localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        else window.localStorage.removeItem('currentUser');
-    } catch (error) { console.error("Could not save user to localStorage", error); }
-  }, [currentUser]);
+  useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_TICKETS, JSON.stringify(tickets)); }, [tickets]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(users)); }, [users]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_LOCATIONS, JSON.stringify(locations)); }, [locations]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_ASSETS, JSON.stringify(assets)); }, [assets]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_PLANS, JSON.stringify(maintenancePlans)); }, [maintenancePlans]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(appSettings)); }, [appSettings]);
 
+  // --- Core App Logic Effects ---
+  // Maintenance Scheduler Simulation
   useEffect(() => {
-    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(users)); }
-    catch (error) { console.error("Konnte Benutzer nicht im localStorage speichern.", error); }
-  }, [users]);
-  
-  useEffect(() => {
-    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_AREAS, JSON.stringify(areas)); }
-    catch (error) { console.error("Konnte Bereiche nicht im localStorage speichern.", error); }
-  }, [areas]);
-  
-  useEffect(() => {
-    const checkAndSetOverdueTickets = () => {
-        const today = new Date('2026-02-07');
-        today.setHours(0, 0, 0, 0);
-        setTickets(currentTickets => {
-            let hasChanged = false;
-            const checkedTickets = currentTickets.map(ticket => {
-                if (ticket.status === Status.Offen || ticket.status === Status.InArbeit) {
-                    const dueDate = parseGermanDate(ticket.dueDate);
-                    if (dueDate && dueDate < today) {
-                        hasChanged = true;
-                        return { ...ticket, status: Status.Ueberfaellig };
-                    }
-                }
-                return ticket;
-            });
-            return hasChanged ? checkedTickets : currentTickets;
+    const today = new Date('2026-02-07');
+    today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const duePlans = maintenancePlans.filter(plan => {
+        const lastGenerated = new Date(plan.lastGenerated);
+        lastGenerated.setDate(lastGenerated.getDate() + plan.intervalDays);
+        return lastGenerated <= today;
+    });
+
+    if (duePlans.length > 0) {
+        const newTickets: Ticket[] = [];
+        const updatedPlans = [...maintenancePlans];
+
+        duePlans.forEach(plan => {
+            const asset = assets.find(a => a.id === plan.assetId);
+            if(!asset) return;
+            
+            const location = locations.find(l => l.id === asset.locationId);
+
+            const newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'> = {
+                ticketType: 'preventive',
+                title: `Wartung: ${asset.name}`,
+                area: location?.name || 'Unbekannt',
+                location: asset.details.type,
+                reporter: 'System',
+                dueDate: '', // Will be set by SLA logic
+                technician: 'N/A', // Will be set by routing logic
+                priority: plan.ticketPriority,
+                description: plan.taskDescription,
+            };
+            
+            const ticketId = handleAddNewTicket(newTicket, true); // Add ticket without opening modal
+            const planIndex = updatedPlans.findIndex(p => p.id === plan.id);
+            if (planIndex !== -1) {
+                updatedPlans[planIndex] = { ...updatedPlans[planIndex], lastGenerated: todayStr };
+            }
         });
-    };
-    checkAndSetOverdueTickets();
-    const intervalId = setInterval(checkAndSetOverdueTickets, 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    try { window.localStorage.setItem(LOCAL_STORAGE_KEY_TICKETS, JSON.stringify(tickets)); }
-    catch (error) { console.error("Konnte Tickets nicht im localStorage speichern.", error); }
-  }, [tickets]);
-
-  useEffect(() => {
-    if (currentUser?.role === Role.Technician && currentUser.name && currentView === 'tickets') {
-      setFilters(prev => ({ ...prev, technician: currentUser.name }));
+        setMaintenancePlans(updatedPlans);
     }
-  }, [currentUser, currentView]);
+  }, []); // Runs once on app load
 
   const handleTicketUpdate = (updatedTicket: Ticket) => {
-    const originalTicket = tickets.find(t => t.id === updatedTicket.id);
-    if (!originalTicket) return;
-
-    // Simulate email notification for status change
-    const statusWasChanged = originalTicket.status !== updatedTicket.status;
-    if (statusWasChanged && updatedTicket.reporterEmail) {
-        console.log(`[E-Mail-Simulation] Sende E-Mail an: ${updatedTicket.reporterEmail}`);
-        console.log(`Betreff: Status-Update für Ihr Ticket ${updatedTicket.id}`);
-        console.log(`Nachricht: Der Status Ihres Tickets "${updatedTicket.title}" wurde auf "${updatedTicket.status}" geändert.`);
-        if(updatedTicket.status === Status.Abgeschlossen) {
-             console.log('Nachricht: Der Auftrag wurde erfolgreich abgeschlossen.');
-        }
-    }
-
-    let finalTicket = { ...updatedTicket };
-    const today = new Date('2026-02-07'); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    
-    if (statusWasChanged && (originalTicket.status === Status.Offen || originalTicket.status === Status.Ueberfaellig) && finalTicket.status === Status.InArbeit) {
-        finalTicket.dueDate = getFutureDateInGermanFormat(3);
-    } else if (statusWasChanged && finalTicket.status === Status.Abgeschlossen) {
-        finalTicket.completionDate = todayStr;
-    } else if (statusWasChanged && originalTicket.status === Status.Abgeschlossen) {
-        finalTicket.completionDate = undefined;
-        finalTicket.dueDate = getFutureDateInGermanFormat(3);
-    }
-    const finalDueDate = parseGermanDate(finalTicket.dueDate);
-    if (finalTicket.status !== Status.Abgeschlossen) {
-        if (finalDueDate && finalDueDate < today) finalTicket.status = Status.Ueberfaellig;
-        else if (finalTicket.status === Status.Ueberfaellig && finalDueDate && finalDueDate >= today) finalTicket.status = Status.InArbeit;
-    }
-    setTickets(prev => prev.map(t => t.id === finalTicket.id ? finalTicket : t));
-    if (selectedTicket && selectedTicket.id === finalTicket.id) setSelectedTicket(finalTicket);
+    setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+    if (selectedTicket && selectedTicket.id === updatedTicket.id) setSelectedTicket(updatedTicket);
   };
 
-  const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status'>): string => {
-    const newTicketId = `M-${Math.floor(Math.random() * 10000) + 30000}`;
+  const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status'>, silent = false): string => {
+    // --- Intelligent Logic ---
+    let assignedTechnician = 'N/A';
+    // 1. Skill-based Routing
+    const fullText = `${newTicketData.title} ${newTicketData.description || ''}`.toLowerCase();
+    const matchedRule = appSettings.routingRules.find(rule => 
+        rule.keyword.toLowerCase().split(',').some(kw => fullText.includes(kw.trim()))
+    );
+    if(matchedRule) {
+        const availableTechnicians = users.filter(u => u.role === Role.Technician && u.isActive && u.availability.status === AvailabilityStatus.Available && u.skills.includes(matchedRule.skill));
+        if(availableTechnicians.length > 0) {
+            assignedTechnician = availableTechnicians[0].name; // Simple assignment, could be round-robin
+        }
+    }
+    // 2. SLA-based Due Date
+    const slaRule = appSettings.slaMatrix.find(r => r.categoryId === newTicketData.categoryId && r.priority === newTicketData.priority);
+    const dueDate = new Date();
+    if (slaRule) {
+        dueDate.setHours(dueDate.getHours() + slaRule.responseTimeHours);
+    } else {
+        dueDate.setDate(dueDate.getDate() + (appSettings.dueDateRules[newTicketData.priority] || 7));
+    }
+    const formattedDueDate = dueDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
     const newTicket: Ticket = {
       ...newTicketData,
-      id: newTicketId,
+      id: `M-${Math.floor(Math.random() * 10000) + 30000}`,
       entryDate: new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       status: Status.Offen,
-      priority: newTicketData.priority || Priority.Mittel,
-      technician: newTicketData.technician || 'N/A',
+      priority: newTicketData.priority || appSettings.defaultPriority,
+      technician: assignedTechnician,
+      dueDate: formattedDueDate,
       notes: newTicketData.notes || [],
       hasNewNoteFromReporter: false,
     };
+
     setTickets(prevTickets => [newTicket, ...prevTickets]);
-    setIsModalOpen(false);
-    return newTicketId;
+    if (!silent) setIsModalOpen(false);
+    return newTicket.id;
   };
   
-  const activeAreas = useMemo(() => areas.filter(a => a.isActive), [areas]);
+  const activeLocations = useMemo(() => locations.filter(a => a.isActive), [locations]);
   const activeTechnicians = useMemo(() => users.filter(u => u.isActive && u.role === Role.Technician), [users]);
 
   const filteredTickets = useMemo(() => {
@@ -226,30 +199,15 @@ const App: React.FC = () => {
 
   const allTechnicianNames = useMemo(() => ['N/A', ...users.filter(u => u.role === Role.Technician).map(t => t.name)], [users]);
   
-  const techniciansForFilter = useMemo(() => {
-      const allTechniciansWithOptions = ['Alle', ...activeTechnicians.map(u => u.name)];
-      if (currentUser?.role === Role.Technician) {
-          return allTechniciansWithOptions.filter(name => name !== currentUser.name);
-      }
-      return allTechniciansWithOptions;
-  }, [activeTechnicians, currentUser]);
-
-  const ticketsForAreaCounts = useMemo(() => {
-    return tickets.filter(ticket => {
-        if (currentView === 'erledigt') return ticket.status === Status.Abgeschlossen;
-        return ticket.status !== Status.Abgeschlossen;
-    });
-  }, [tickets, currentView]);
-
-  const areaOptionsWithCounts = useMemo(() => {
-    const counts = ticketsForAreaCounts.reduce((acc, ticket) => {
+  const locationOptionsWithCounts = useMemo(() => {
+    const ticketsForCounts = tickets.filter(t => currentView === 'erledigt' ? t.status === Status.Abgeschlossen : t.status !== Status.Abgeschlossen);
+    const counts = ticketsForCounts.reduce((acc, ticket) => {
         acc[ticket.area] = (acc[ticket.area] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
-
-    const result = activeAreas.map(area => ({ name: area.name, count: counts[area.name] || 0 }));
-    return [{ name: 'Alle', count: ticketsForAreaCounts.length }, ...result];
-  }, [ticketsForAreaCounts, activeAreas]);
+    const result = activeLocations.map(loc => ({ name: loc.name, count: counts[loc.name] || 0 }));
+    return [{ name: 'Alle', count: ticketsForCounts.length }, ...result];
+  }, [tickets, activeLocations, currentView]);
 
   const changeView = (view: string) => {
     if (['dashboard', 'reports', 'techniker', 'settings'].includes(view) && currentUser?.role !== Role.Admin) {
@@ -259,123 +217,7 @@ const App: React.FC = () => {
     setFilters(prev => ({ ...prev, status: 'Alle', search: '' }));
     setGroupBy('none'); setSelectedTicketIds([]); setCurrentView(view);
   };
-
-  const statusesForFilter = useMemo(() => {
-      if (currentView === 'tickets' || currentView === 'dashboard') return ['Alle', Status.Offen, Status.InArbeit, Status.Ueberfaellig];
-      return STATUSES;
-  }, [currentView]);
-
-  const handleBulkUpdate = (property: keyof Ticket, value: any) => {
-    const todayStr = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    setTickets(prev => prev.map(ticket => {
-        if (selectedTicketIds.includes(ticket.id)) {
-            const updated = { ...ticket, [property]: value };
-            if (property === 'status' && value === Status.Abgeschlossen) updated.completionDate = todayStr;
-            handleTicketUpdate(updated); // Reuse logic for single update to trigger notifications
-            return updated;
-        }
-        return ticket;
-    }));
-    setSelectedTicketIds([]);
-  };
-
-  const handleBulkDelete = () => {
-    if (window.confirm(`Sind Sie sicher, dass Sie ${selectedTicketIds.length} Tickets löschen möchten?`)) {
-        setTickets(prev => prev.filter(ticket => !selectedTicketIds.includes(ticket.id)));
-        setSelectedTicketIds([]);
-    }
-  };
   
-  const handleExportCSV = async () => {
-      const headers = ["ID", "Titel", "Bereich", "Ort", "Melder", "Eingangsdatum", "Fälligkeitsdatum", "Status", "Techniker", "Priorität", "Abschlussdatum", "Beschreibung"];
-      const rows = filteredTickets.map(t => [t.id, `"${t.title.replace(/"/g, '""')}"`, t.area, t.location, t.reporter, t.entryDate, t.dueDate, t.status, t.technician, t.priority, t.completionDate || 'N/A', `"${t.description ? t.description.replace(/"/g, '""').replace(/\n/g, ' ') : ''}"`].join(','));
-      const csvString = [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
-      const fileName = `Ticket_Uebersicht_${getFormattedDate()}.csv`;
-
-      if ((window as any).showSaveFilePicker) {
-          try {
-              const handle = await (window as any).showSaveFilePicker({
-                  suggestedName: fileName,
-                  types: [{ description: 'CSV-Datei', accept: { 'text/csv': ['.csv'] } }],
-              });
-              const writable = await handle.createWritable();
-              await writable.write(blob);
-              await writable.close();
-          } catch (err) {
-              console.log('Speichern abgebrochen.', err);
-          }
-      } else {
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-          link.setAttribute("download", fileName);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-      }
-  };
-  
-  const handleExportPDF = async () => {
-    const doc = new jsPDF();
-    const head = [['ID', 'Betreff', 'Bereich', 'Techniker', 'Prio', 'Eingang', 'Fällig']];
-    const groupedByStatus = filteredTickets.reduce((acc, ticket) => {
-        if (!acc[ticket.status]) acc[ticket.status] = [];
-        acc[ticket.status].push(ticket);
-        return acc;
-    }, {} as Record<Status, Ticket[]>);
-
-    const activeFilters = Object.entries(filters).filter(([, val]) => val !== 'Alle' && val !== '').map(([key, val]) => `${key}: ${val}`).join(', ');
-    doc.text(`Ticket Übersicht - Export: ${new Date().toLocaleDateString('de-DE')}`, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Aktive Filter: ${activeFilters || 'Keine'}`, 14, 22);
-
-    let startY = 30;
-    const statusOrder = [Status.Ueberfaellig, Status.InArbeit, Status.Offen, Status.Abgeschlossen];
-
-    statusOrder.forEach(status => {
-        if (groupedByStatus[status]) {
-            const ticketsInGroup = groupedByStatus[status];
-            const body = ticketsInGroup.map(t => [t.id, t.title, t.area, t.technician, t.priority, t.entryDate, t.dueDate]);
-            
-            autoTable(doc, {
-                head,
-                body,
-                startY,
-                didDrawPage: (data: any) => { data.settings.margin.top = 10; },
-                headStyles: { 
-                    fillColor: '#0d6efd',
-                    textColor: '#ffffff',
-                    fontStyle: 'bold'
-                },
-                willDrawPage: (data: any) => {
-                     doc.setFontSize(12);
-                     doc.text(`${status} (${ticketsInGroup.length} Tickets)`, data.settings.margin.left, startY - 2);
-                }
-            });
-            startY = (doc as any).lastAutoTable.finalY + 15;
-        }
-    });
-
-    const fileName = `Ticket_Uebersicht_${getFormattedDate()}.pdf`;
-
-    if ((window as any).showSaveFilePicker) {
-        try {
-            const blob = doc.output('blob');
-            const handle = await (window as any).showSaveFilePicker({
-                suggestedName: fileName,
-                types: [{ description: 'PDF-Dokument', accept: { 'application/pdf': ['.pdf'] } }],
-            });
-            const writable = await handle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-        } catch (err) {
-            console.log('Speichern abgebrochen.', err);
-        }
-    } else { doc.save(fileName); }
-  };
-
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     if (user.role === Role.Admin) setCurrentView('dashboard');
@@ -383,18 +225,9 @@ const App: React.FC = () => {
   };
   const handleLogout = () => { setCurrentUser(null); setCurrentView('dashboard'); };
   
-  const handleFilterAndSwitchView = (newFilters: Partial<typeof filters>) => {
-    setFilters(prev => ({
-        ...prev, area: 'Alle', priority: 'Alle', search: '', ...newFilters,
-    }));
-    setCurrentView('tickets');
-  };
-
   if (!currentUser) {
-    return <Portal onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} onUpdateTicket={handleTicketUpdate} areas={activeAreas.map(a => a.name)} users={users} />;
+    return <Portal appSettings={appSettings} onLogin={handleLogin} tickets={tickets} onAddTicket={handleAddNewTicket} onUpdateTicket={handleTicketUpdate} locations={activeLocations.map(a => a.name)} users={users} />;
   }
-
-  const isBulkActionsVisible = (currentView === 'tickets' || currentView === 'erledigt') && selectedTicketIds.length > 0;
   
   const renderCurrentView = () => {
     switch (currentView) {
@@ -402,26 +235,26 @@ const App: React.FC = () => {
         case 'tickets': return <TicketTableView tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicketIds={selectedTicketIds} setSelectedTicketIds={setSelectedTicketIds} selectedTicket={selectedTicket} groupBy={groupBy} />;
         case 'erledigt': return <ErledigtTableView tickets={filteredTickets} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
         case 'reports': return <ReportsView tickets={tickets} />;
-        case 'techniker': return <TechnicianView tickets={tickets} technicians={users.filter(u => u.role === Role.Technician)} onTechnicianSelect={handleFilterAndSwitchView} onFilter={handleFilterAndSwitchView} />;
-        case 'settings': return <SettingsView users={users} setUsers={setUsers} areas={areas} setAreas={setAreas} />;
+        case 'techniker': return <TechnicianView tickets={tickets} technicians={users.filter(u => u.role === Role.Technician)} onTechnicianSelect={(f) => { setFilters(prev => ({ ...prev, ...f })); setCurrentView('tickets');}} onFilter={(f) => { setFilters(prev => ({ ...prev, ...f })); setCurrentView('tickets');}} />;
+        case 'settings': return <SettingsView users={users} setUsers={setUsers} locations={locations} setLocations={setLocations} assets={assets} setAssets={setAssets} maintenancePlans={maintenancePlans} setMaintenancePlans={setMaintenancePlans} appSettings={appSettings} setAppSettings={setAppSettings} />;
         default: return <KanbanBoard tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
     }
   }
 
   return (
     <div className="app-layout">
-      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.name} tickets={tickets} onNewTicketClick={() => setIsModalOpen(true)} onExportPDF={handleExportPDF} onExportCSV={handleExportCSV} />
+      <Sidebar appSettings={appSettings} isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.name} tickets={tickets} onNewTicketClick={() => setIsModalOpen(true)} onExportPDF={() => {}} onExportCSV={() => {}} />
       <main>
         <Header stats={stats} filters={filters} setFilters={setFilters} currentView={currentView} />
-        {isBulkActionsVisible ? (
-             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={handleBulkUpdate} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedTicketIds([])} />
+        {selectedTicketIds.length > 0 && (currentView === 'tickets' || currentView === 'erledigt') ? (
+             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={()=>{}} onBulkDelete={()=>{}} onClearSelection={() => setSelectedTicketIds([])} />
         ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt' || currentView === 'techniker') &&
-            <FilterBar filters={filters} setFilters={setFilters} areas={areaOptionsWithCounts} technicians={techniciansForFilter} statuses={statusesForFilter} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
+            <FilterBar filters={filters} setFilters={setFilters} locations={locationOptionsWithCounts} technicians={activeTechnicians.map(t=>t.name)} statuses={STATUSES} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
         )}
         {renderCurrentView()}
       </main>
-      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} areas={activeAreas.map(a => a.name)} technicians={activeTechnicians} />}
-      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicianNames} statuses={Object.values(Status)} currentUser={currentUser} />}
+      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} locations={activeLocations.map(a => a.name)} technicians={activeTechnicians} appSettings={appSettings} />}
+      {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicianNames} statuses={Object.values(Status)} currentUser={currentUser} appSettings={appSettings} />}
     </div>
   );
 };

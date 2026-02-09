@@ -16,43 +16,128 @@ export enum Role {
   Technician = 'techniker',
 }
 
+export enum AvailabilityStatus {
+  Available = 'Verfügbar',
+  OnLeave = 'Abwesend',
+  InAction = 'Im Einsatz',
+}
+
 export interface User {
   id: string;
   name: string;
   role: Role;
   password?: string;
   isActive: boolean;
+  skills: string[];
+  availability: {
+    status: AvailabilityStatus;
+    leaveUntil: string | null; // YYYY-MM-DD
+  };
 }
 
-export interface AppArea {
+export interface Location {
   id: string;
   name: string;
   isActive: boolean;
 }
 
-export interface Technician {
-    name: string;
+export interface TicketCategory {
+  id: string;
+  name: string;
+}
+
+export interface SLARule {
+  id: string;
+  categoryId: string;
+  priority: Priority;
+  responseTimeHours: number;
+}
+
+export interface RoutingRule {
+  id: string;
+  keyword: string; // Comma-separated
+  skill: string;
+}
+
+export interface AppSettings {
+  appName: string;
+  logoUrl: string;
+  defaultPriority: Priority;
+  portalConfig: {
+    showStatus: boolean;
+    showTechnicianLogin: boolean;
+    showAdminLogin: boolean;
+  };
+  dueDateRules: Record<Priority, number>; // Legacy, will be superseded by SLA matrix
+  ticketCategories: TicketCategory[];
+  slaMatrix: SLARule[];
+  routingRules: RoutingRule[];
+}
+
+export interface MaintenancePlan {
+  id: string;
+  assetId: string;
+  taskDescription: string;
+  intervalDays: number;
+  requiredSkill: string;
+  ticketPriority: Priority;
+  lastGenerated: string; // YYYY-MM-DD
+}
+
+export interface MaintenanceEvent {
+  eventId: string;
+  ticketId: string;
+  date: string; // YYYY-MM-DD
+  description: string;
+  type: 'repair' | 'maintenance';
+  costs: {
+    laborHours: number;
+    materials: number;
+  };
+}
+
+export interface Asset {
+  id: string;
+  name: string;
+  locationId: string;
+  details: {
+    type: string;
+    manufacturer: string;
+    model: string;
+    installDate: string; // YYYY-MM-DD
+    qrCode?: string;
+  };
+  maintenancePlanId?: string;
+  maintenanceHistory: MaintenanceEvent[];
 }
 
 export type GroupableKey = 'status' | 'technician' | 'priority' | 'area';
 
+export type TicketType = 'reactive' | 'preventive';
 
 export interface Ticket {
   id: string;
+  ticketType: TicketType;
   title: string;
-  area: string;
+  area: string; // Corresponds to Location name
   location: string;
   reporter: string;
-  entryDate: string;
-  dueDate: string;
+  entryDate: string; // DD.MM.YYYY
+  dueDate: string; // DD.MM.YYYY
   status: Status;
   technician: string;
   priority: Priority;
-  completionDate?: string; // Datum, an dem das Ticket abgeschlossen wurde
-  wunschTermin?: string; // Optionaler Wunschtermin vom Melder
-  photos?: string[]; // Array von Base64-kodierten Bildern
+  categoryId?: string;
+  assetId?: string;
+  completionDate?: string; // DD.MM.YYYY
+  wunschTermin?: string; // DD.MM.YYYY
+  photos?: string[];
   description?: string;
   notes?: string[];
-  reporterEmail?: string; // Optional: E-Mail des Melders für Benachrichtigungen
-  hasNewNoteFromReporter?: boolean; // Optional: Flag für neue Notizen vom Melder
+  reporterEmail?: string;
+  hasNewNoteFromReporter?: boolean;
+  costs?: {
+    laborHours: number;
+    materials: number;
+  };
 }

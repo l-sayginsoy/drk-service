@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-// FIX: Import User type and remove TECHNICIANS_DATA import.
-import { Ticket, Priority, User } from '../types';
+import { Ticket, Priority, User, AppSettings } from '../types';
 
 interface NewTicketModalProps {
   onClose: () => void;
   onSave: (newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'>) => void;
-  areas: string[];
-  // FIX: Add technicians prop to the interface
+  locations: string[];
   technicians: User[];
+  appSettings: AppSettings;
 }
 
 // Helper function to format date for input type="date" (YYYY-MM-DD)
@@ -17,29 +16,29 @@ const getFutureDateString = (days: number): string => {
     return futureDate.toISOString().split('T')[0];
 };
 
-const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas, technicians }) => {
+const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, locations, technicians, appSettings }) => {
   const [title, setTitle] = useState('');
-  const [area, setArea] = useState(areas[0] || '');
+  const [area, setArea] = useState(locations[0] || '');
   const [location, setLocation] = useState('');
+  const [categoryId, setCategoryId] = useState(appSettings.ticketCategories[0]?.id || '');
   const [reporter, setReporter] = useState('');
   const [dueDate, setDueDate] = useState(getFutureDateString(7)); // Default due date 7 days from now
-  // FIX: Use technicians prop for initial state.
   const [technician, setTechnician] = useState(technicians[0]?.name || '');
   const [priority, setPriority] = useState<Priority>(Priority.Mittel);
   const [description, setDescription] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !dueDate) {
-        alert('Bitte Titel und Fälligkeitsdatum ausfüllen.');
+    if (!title.trim() || !dueDate || !categoryId) {
+        alert('Bitte Titel, Kategorie und Fälligkeitsdatum ausfüllen.');
         return;
     }
 
-    // Convert YYYY-MM-DD from date input to DD.MM.YYYY for app consistency
     const [year, month, day] = dueDate.split('-');
     const formattedDueDate = `${day}.${month}.${year}`;
 
     onSave({
+      ticketType: 'reactive',
       title,
       area,
       location,
@@ -47,6 +46,7 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas,
       dueDate: formattedDueDate,
       technician,
       priority,
+      categoryId,
       description,
       notes: [],
     });
@@ -163,7 +163,7 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas,
             <div className="form-group">
                 <label htmlFor="area">Bereich</label>
                 <select id="area" value={area} onChange={e => setArea(e.target.value)}>
-                    {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                    {locations.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
             </div>
              <div className="form-group">
@@ -171,6 +171,18 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas,
                 <input id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} />
             </div>
             <div className="form-group">
+                <label htmlFor="category">Kategorie</label>
+                <select id="category" value={categoryId} onChange={e => setCategoryId(e.target.value)} required>
+                    {appSettings.ticketCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+            </div>
+            <div className="form-group">
+                <label htmlFor="priority">Priorität</label>
+                <select id="priority" value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+                    {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+            </div>
+             <div className="form-group">
                 <label htmlFor="reporter">Melder</label>
                 <input id="reporter" type="text" value={reporter} onChange={e => setReporter(e.target.value)} />
             </div>
@@ -178,17 +190,11 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onSave, areas,
                 <label htmlFor="dueDate">Fällig bis</label>
                 <input id="dueDate" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required />
             </div>
-            <div className="form-group">
-                <label htmlFor="technician">Techniker</label>
+            <div className="form-group full-width">
+                <label htmlFor="technician">Techniker (wird ggf. automatisch zugewiesen)</label>
                 <select id="technician" value={technician} onChange={e => setTechnician(e.target.value)}>
-                    {/* FIX: Use technicians prop */}
+                    <option value="N/A">Nicht zugewiesen</option>
                     {technicians.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                </select>
-            </div>
-            <div className="form-group">
-                <label htmlFor="priority">Priorität</label>
-                <select id="priority" value={priority} onChange={e => setPriority(e.target.value as Priority)}>
-                    {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
             </div>
              <div className="form-group full-width">

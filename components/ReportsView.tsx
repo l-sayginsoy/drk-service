@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Ticket, Status, Priority } from '../types';
-import { statusBgColorMap, AREAS, TECHNICIANS_DATA, STATUSES } from '../constants';
+// FIX: Changed AREAS to LOCATIONS_FOR_FILTER as AREAS is not exported from constants.
+import { statusBgColorMap, LOCATIONS_FOR_FILTER, TECHNICIANS_DATA, STATUSES } from '../constants';
 import { DocumentIcon } from './icons/DocumentIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { RefreshIcon } from './icons/RefreshIcon';
@@ -149,6 +150,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         
         // FIX: Provide explicit type for reduce accumulator
         // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
+        // FIX: Add explicit type for reduce accumulator to resolve property access on 'unknown' errors.
         const areaStats = filteredTickets.reduce<Record<string, { total: number; overdue: number }>>((acc, ticket) => {
             if (!acc[ticket.area]) {
                 acc[ticket.area] = { total: 0, overdue: 0 };
@@ -168,6 +170,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             .sort((a, b) => b.value - a.value);
 
         // FIX: Provide explicit type for reduce accumulator
+        // FIX: Add explicit type for reduce accumulator to resolve downstream type errors.
         const ticketsByPriority = filteredTickets.reduce<Record<string, number>>((acc, ticket) => {
             acc[ticket.priority] = (acc[ticket.priority] || 0) + 1;
             return acc;
@@ -175,6 +178,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
         // FIX: Provide explicit type for reduce accumulator
         // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
+        // FIX: Add explicit type for reduce accumulator to resolve property access on 'unknown' errors.
         const technicianStats = filteredTickets.reduce<Record<string, { totalActive: number; overdue: number; label: string }>>((acc, ticket) => {
             const tech = ticket.technician;
             if (tech && tech !== 'N/A') {
@@ -196,6 +200,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         
         // FIX: Provide explicit type for reduce accumulator
         // FIX: Explicitly type the initial value for the reduce accumulator to resolve type inference issues.
+        // FIX: Add explicit type for reduce accumulator to resolve property access on 'unknown' errors.
         const completedByTechnicianRaw = filteredTickets
             .filter(t => t.status === Status.Abgeschlossen && t.technician && t.technician !== 'N/A')
             .reduce<Record<string, { count: number; totalResolutionDays: number }>>((acc, ticket) => {
@@ -667,7 +672,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                         <span>Bereich</span>
                         {reportFilters.area !== 'Alle' && <span className="filter-badge">{reportFilters.area}</span>}
                         <select value={reportFilters.area} onChange={e => setReportFilters(f => ({ ...f, area: e.target.value }))}>
-                            {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                            {LOCATIONS_FOR_FILTER.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
                         <ChevronDownIcon />
                     </div>
