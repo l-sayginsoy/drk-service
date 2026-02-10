@@ -12,7 +12,7 @@ import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
-import { TicketIcon } from './icons/TicketIcon';
+import { PlusIcon } from './icons/PlusIcon';
 import { BarChartIcon } from './icons/BarChartIcon';
 
 
@@ -133,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                 }
                 .sidebar-icon-logo {
                     display: none;
-                    color: var(--accent-primary);
+                    color: var(--accent-danger);
                 }
                  .sidebar.collapsed .sidebar-icon-logo {
                     display: block;
@@ -367,7 +367,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                         className="sidebar-logo"
                     />
                 </div>
-                <TicketIcon className="sidebar-icon-logo" />
+                <PlusIcon className="sidebar-icon-logo" strokeWidth={2.5} />
                  <button 
                     className="collapse-toggle" 
                     onClick={() => setCollapsed(!isCollapsed)} 

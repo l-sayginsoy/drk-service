@@ -198,7 +198,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const resolvedTickets = filteredTickets.filter(t => t.completionDate && t.entryDate);
         let avgResolutionTime = 0;
         if (resolvedTickets.length > 0) {
-            const totalTime = resolvedTickets.reduce((acc, t) => {
+            // FIX: Explicitly type accumulator to ensure correct type inference.
+            const totalTime = resolvedTickets.reduce((acc: number, t) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
                 // FIX: Explicitly check for valid dates to ensure correct types for arithmetic operation.
