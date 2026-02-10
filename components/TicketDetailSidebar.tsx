@@ -6,6 +6,12 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { statusColorMap, statusBgColorMap } from '../constants';
 
 
+const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+);
+
 // Helper function to format the note text and style its metadata (can be shared)
 const formatNote = (note: string) => {
     const noteRegex = /^(.*)\s\((.*)\s(?:am\s)?(\d{1,2}\.\d{1,2}\.\d{2,4}),?\s(\d{2}:\d{2})(?::\d{2})?\)$/;
@@ -120,7 +126,7 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
   return (
     <>
       <div className="detail-sidebar-overlay" onClick={onClose}></div>
-      <div className="detail-sidebar">
+      <div className={`detail-sidebar ${ticket.is_emergency ? 'urgent-alert-sidebar' : ''}`}>
         <style>{`
             .detail-sidebar-overlay {
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -141,7 +147,22 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             }
             .sidebar-title-compact {
                 font-size: 1.1rem; font-weight: 600; color: var(--text-primary);
+                display: flex; align-items: center; gap: 0.75rem;
             }
+            .urgent-sidebar-icon {
+                color: var(--accent-danger);
+            }
+
+            @keyframes pulse-border-sidebar {
+                0% { border-left-color: var(--accent-danger); }
+                50% { border-left-color: transparent; }
+                100% { border-left-color: var(--accent-danger); }
+            }
+            .detail-sidebar.urgent-alert-sidebar {
+                border-left: 3px solid var(--accent-danger);
+                animation: slideInRight 0.3s ease, pulse-border-sidebar 1.5s infinite;
+            }
+
             .close-btn {
                 background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; margin: -0.5rem;
             }
@@ -256,7 +277,10 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             .photo-thumbnail:hover img { transform: scale(1.1); }
         `}</style>
         <div className="sidebar-header-compact">
-            <h2 className="sidebar-title-compact">Ticket {ticket.id}</h2>
+            <h2 className="sidebar-title-compact">
+                {ticket.is_emergency && <ExclamationTriangleIcon className="urgent-sidebar-icon" width={20} height={20} />}
+                Ticket {ticket.id}
+            </h2>
             <button className="close-btn" onClick={onClose}><XIcon /></button>
         </div>
         <div className="sidebar-body-compact">

@@ -5,6 +5,7 @@ import { PlusIcon } from './icons/PlusIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import UserModal from './UserModal';
 import AreaModal from './AreaModal';
+import SwitchToggle from './SwitchToggle';
 
 interface SettingsViewProps {
     users: User[];
@@ -57,6 +58,10 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
         if (window.confirm('Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?')) {
             setUsers(current => current.filter(user => user.id !== id));
         }
+    };
+
+    const handleToggleUserStatus = (userId: string) => {
+        setUsers(current => current.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
     };
     
     // --- Location Management ---
@@ -203,7 +208,13 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                             <td>{user.role}</td>
                             <td><div className="skills-container">{user.skills.map(s => <span key={s} className="skill-tag">{s}</span>)}</div></td>
                             <td>{user.availability.status}</td>
-                            <td><span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>{user.isActive ? 'Aktiv' : 'Inaktiv'}</span></td>
+                            <td>
+                                <SwitchToggle
+                                    id={`user-status-${user.id}`}
+                                    isChecked={user.isActive}
+                                    onChange={() => handleToggleUserStatus(user.id)}
+                                />
+                            </td>
                             <td className="actions-cell">
                                 <button className="btn btn-secondary" onClick={() => handleOpenUserModal(user)}>Bearbeiten</button>
                                 {user.role !== Role.Admin && <button className="btn btn-danger" onClick={() => handleDeleteUser(user.id)} title="Löschen"><TrashIcon /></button>}
@@ -233,10 +244,15 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                     {locations.map(location => (
                         <tr key={location.id}>
                             <td>{location.name}</td>
-                            <td><span className={`status-badge ${location.isActive ? 'active' : 'inactive'}`}>{location.isActive ? 'Aktiv' : 'Inaktiv'}</span></td>
+                             <td>
+                                <SwitchToggle
+                                    id={`location-status-${location.id}`}
+                                    isChecked={location.isActive}
+                                    onChange={() => handleToggleLocationStatus(location.id)}
+                                />
+                            </td>
                             <td className="actions-cell">
                                 <button className="btn btn-secondary" onClick={() => handleOpenLocationModal(location)}>Bearbeiten</button>
-                                <button className="btn btn-secondary" onClick={() => handleToggleLocationStatus(location.id)}>{location.isActive ? 'Deaktivieren' : 'Aktivieren'}</button>
                                 <button className="btn btn-danger" onClick={() => handleDeleteLocation(location.id)} title="Löschen"><TrashIcon /></button>
                             </td>
                         </tr>

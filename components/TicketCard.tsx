@@ -230,6 +230,12 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 .action-value-box.priority-high {
                     background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.3); font-weight: 600;
                 }
+                .action-value-box.emergency {
+                    background-color: var(--accent-danger);
+                    color: white;
+                    border-color: var(--accent-danger);
+                    font-weight: 600;
+                }
                 .date-input-wrapper {
                     position: relative;
                 }
@@ -311,7 +317,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 <div className="action-item">
                     <div className="action-label">Priorität</div>
                      {isEmergency ? (
-                        <div className="action-value-box priority-high">Notfall</div>
+                        <div className="action-value-box emergency">Notfall</div>
                     ) : (
                         <Dropdown options={Object.values(Priority)} selected={ticket.priority} onChange={handlePriorityChange} className={priorityClasses[ticket.priority]} />
                     )}

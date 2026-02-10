@@ -211,8 +211,8 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 </td>
                 <td>
                   <div className="ticket-id-cell">
-                    {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                     {ticket.id}
+                    {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                     {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
                   </div>
                 </td>
