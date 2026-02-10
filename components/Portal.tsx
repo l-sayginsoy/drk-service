@@ -512,7 +512,7 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
                 .portal-box.view-pruefen { max-width: 450px; }
                 .portal-box.view-pruefen form { display: flex; flex-direction: column; flex-grow: 1; }
                 .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
-                .portal-logo { display: block; margin: 0 auto 2rem 0; max-width: 250px; height: auto; max-height: 70px; object-fit: contain; }
+                .portal-logo { display: block; margin: 0 auto 2rem; max-width: 250px; height: auto; max-height: 70px; object-fit: contain; }
                 .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; }
                 .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; z-index: 1; }
                 .back-btn:hover { color: var(--text-primary); }

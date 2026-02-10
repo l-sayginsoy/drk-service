@@ -223,12 +223,12 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
     const ticketsByTechnician = useMemo(() => {
         // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
-        const counts = filteredTickets.reduce((acc: Record<string, number>, ticket) => {
+        const counts = filteredTickets.reduce((acc, ticket) => {
             if (ticket.technician && ticket.technician !== 'N/A') {
                  acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
             }
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         const sorted = Object.entries(counts).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
         const top5 = sorted.slice(0, 5);

@@ -133,12 +133,12 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                 }
                 .sidebar-icon-logo {
                     display: none;
-                    color: var(--accent-danger);
                 }
                  .sidebar.collapsed .sidebar-icon-logo {
                     display: block;
                     width: 32px;
                     height: 32px;
+                    object-fit: contain;
                 }
                 
                 .nav-menu {
@@ -367,7 +367,11 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                         className="sidebar-logo"
                     />
                 </div>
-                <PlusIcon className="sidebar-icon-logo" strokeWidth={2.5} />
+                <img 
+                    src="/kreuz.png"
+                    alt="DRK Kreuz Logo"
+                    className="sidebar-icon-logo"
+                />
                  <button 
                     className="collapse-toggle" 
                     onClick={() => setCollapsed(!isCollapsed)} 
