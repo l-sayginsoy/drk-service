@@ -222,21 +222,33 @@ const App: React.FC = () => {
 
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
-        if (['reports', 'techniker', 'settings'].includes(currentView)) return true;
+        // Role-based pre-filtering: Technicians should only see tickets assigned to them.
+        if (currentUser?.role === Role.Technician && ticket.technician !== currentUser.name) {
+            return false;
+        }
+
         const searchLower = filters.search.toLowerCase();
         if (filters.search && !ticket.title.toLowerCase().includes(searchLower) && !ticket.id.toLowerCase().includes(searchLower) && !ticket.area.toLowerCase().includes(searchLower)) return false;
+        
         if (filters.area !== 'Alle' && ticket.area !== filters.area) return false;
+        
         if (filters.technician !== 'Alle' && ticket.technician !== filters.technician) return false;
+        
         if (filters.priority !== 'Alle' && ticket.priority !== filters.priority) return false;
+        
         if (currentView === 'erledigt') {
             if (filters.status !== 'Alle' && ticket.status !== filters.status) return false;
             return ticket.status === Status.Abgeschlossen;
         }
+        
+        // For dashboard & tickets views, hide completed tickets.
         if (ticket.status === Status.Abgeschlossen) return false;
+        
         if ((currentView === 'tickets' || currentView === 'dashboard') && filters.status !== 'Alle' && ticket.status !== filters.status) return false;
+        
         return true;
     });
-  }, [tickets, filters, currentView]);
+  }, [tickets, filters, currentView, currentUser]);
   
   const stats = useMemo(() => ({
       open: tickets.filter(t => t.status === Status.Offen).length,

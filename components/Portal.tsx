@@ -511,7 +511,7 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
                 .portal-box { width: 100%; max-width: var(--portal-max-width); background: var(--bg-secondary); border-radius: 12px; box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; }
                 .portal-box.view-pruefen { max-width: 450px; }
                 .portal-box.view-pruefen form { display: flex; flex-direction: column; flex-grow: 1; }
-                .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: center; }
+                .portal-header { padding: 2.5rem 2rem 2.5rem; text-align: left; }
                 .portal-logo { max-width: 250px; height: auto; max-height: 70px; object-fit: contain; margin-bottom: 2rem; }
                 .portal-header.condensed { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; }
                 .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.5rem; z-index: 1; }

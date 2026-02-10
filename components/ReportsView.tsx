@@ -222,7 +222,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
     const ticketsByTechnician = useMemo(() => {
         // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
-        const counts = filteredTickets.reduce<Record<string, number>>((acc, ticket) => {
+        const counts = filteredTickets.reduce((acc: Record<string, number>, ticket) => {
             if (ticket.technician && ticket.technician !== 'N/A') {
                  acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
             }
