@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Ticket, Status, Priority, Role, GroupableKey, User, Location, AppSettings, Asset, MaintenancePlan, AvailabilityStatus, RoutingRule } from './types';
@@ -160,6 +160,13 @@ const App: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
 
+  const prevUsersRef = useRef<User[]>();
+  useEffect(() => {
+      prevUsersRef.current = users;
+  });
+  const prevUsers = prevUsersRef.current;
+
+
   // --- Effects to persist state ---
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
@@ -171,6 +178,63 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(appSettings)); }, [appSettings]);
 
   // --- Core App Logic Effects ---
+  // Automatic Ticket Re-assignment on Technician Leave
+  useEffect(() => {
+      if (!prevUsers || prevUsers.length === 0) return;
+
+      const newlyAbsentUsers = users.filter(user => {
+          const prevUser = prevUsers.find(p => p.id === user.id);
+          return prevUser &&
+              prevUser.availability.status !== AvailabilityStatus.OnLeave &&
+              user.availability.status === AvailabilityStatus.OnLeave;
+      });
+
+      if (newlyAbsentUsers.length > 0) {
+          let ticketsToUpdate = [...tickets];
+          let updated = false;
+
+          newlyAbsentUsers.forEach(absentUser => {
+              const today = new Date();
+              const threeDaysFromNow = new Date();
+              threeDaysFromNow.setDate(today.getDate() + 3);
+
+              const criticalTickets = tickets.filter(t => {
+                  if (t.technician !== absentUser.name || t.status === Status.Abgeschlossen) return false;
+                  if (t.priority === Priority.Hoch) return true;
+                  if (t.status === Status.Ueberfaellig) return true;
+                  const dueDate = parseGermanDate(t.dueDate);
+                  if (dueDate && dueDate <= threeDaysFromNow) return true;
+                  return false;
+              });
+
+              criticalTickets.forEach(ticket => {
+                  const newTechnician = assignTicket(ticket, users, ticketsToUpdate, appSettings.routingRules);
+                  if (newTechnician !== 'N/A' && newTechnician !== absentUser.name) {
+                      const ticketIndex = ticketsToUpdate.findIndex(t => t.id === ticket.id);
+                      if (ticketIndex !== -1) {
+                          const date = new Date();
+                          const formattedDate = date.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: 'numeric' });
+                          const formattedTime = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                          const note = `Ticket automatisch von ${absentUser.name} an ${newTechnician} umverteilt wegen Abwesenheit. (System am ${formattedDate}, ${formattedTime})`;
+
+                          const originalTicket = ticketsToUpdate[ticketIndex];
+                          ticketsToUpdate[ticketIndex] = {
+                              ...originalTicket,
+                              technician: newTechnician,
+                              notes: [...(originalTicket.notes || []), note]
+                          };
+                          updated = true;
+                      }
+                  }
+              });
+          });
+
+          if (updated) {
+              setTickets(ticketsToUpdate);
+          }
+      }
+  }, [users, prevUsers, tickets, appSettings.routingRules]);
+
   // Maintenance Scheduler Simulation
   useEffect(() => {
     const today = new Date(2026, 1, 7); // Changed for Safari
@@ -264,6 +328,15 @@ const App: React.FC = () => {
     if (selectedTicket && selectedTicket.id === updatedTicket.id) {
         setSelectedTicket(updatedTicket);
     }
+  };
+
+  const handleDeleteTicket = (ticketId: string) => {
+      if (window.confirm('Sind Sie sicher, dass Sie dieses Ticket endgültig löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.')) {
+          setTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
+          if (selectedTicket && selectedTicket.id === ticketId) {
+              setSelectedTicket(null);
+          }
+      }
   };
 
   const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }, silent = false): string => {
@@ -379,7 +452,7 @@ const App: React.FC = () => {
     switch (currentView) {
         case 'dashboard': return <KanbanBoard tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
         case 'tickets': return <TicketTableView tickets={filteredTickets} onUpdateTicket={handleTicketUpdate} onSelectTicket={setSelectedTicket} selectedTicketIds={selectedTicketIds} setSelectedTicketIds={setSelectedTicketIds} selectedTicket={selectedTicket} groupBy={groupBy} />;
-        case 'erledigt': return <ErledigtTableView tickets={filteredTickets} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} />;
+        case 'erledigt': return <ErledigtTableView tickets={filteredTickets} onSelectTicket={setSelectedTicket} selectedTicket={selectedTicket} onDeleteTicket={handleDeleteTicket} />;
         case 'reports': return <ReportsView tickets={tickets} />;
         case 'techniker': return <TechnicianView tickets={tickets} technicians={users.filter(u => u.role === Role.Technician)} onTechnicianSelect={(f) => { setFilters(prev => ({ ...prev, ...f })); setCurrentView('tickets');}} onFilter={(f) => { setFilters(prev => ({ ...prev, ...f })); setCurrentView('tickets');}} />;
         case 'settings': return <SettingsView users={users} setUsers={setUsers} locations={locations} setLocations={setLocations} assets={assets} setAssets={setAssets} maintenancePlans={maintenancePlans} setMaintenancePlans={setMaintenancePlans} appSettings={appSettings} setAppSettings={setAppSettings} />;

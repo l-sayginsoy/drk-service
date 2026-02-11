@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { Ticket, Status, Priority } from '../types';
 import { SortAscendingIcon } from './icons/SortAscendingIcon';
 import { SortDescendingIcon } from './icons/SortDescendingIcon';
+import { TrashIcon } from './icons/TrashIcon';
 
 interface ErledigtTableViewProps {
   tickets: Ticket[];
   onSelectTicket: (ticket: Ticket) => void;
   selectedTicket: Ticket | null;
+  onDeleteTicket: (ticketId: string) => void;
 }
 
 type SortableKeys = keyof Ticket | 'entryDate' | 'dueDate' | 'completionDate';
@@ -39,7 +41,7 @@ const formatTechnicianName = (name: string) => {
 };
 
 
-const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelectTicket, selectedTicket }) => {
+const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelectTicket, selectedTicket, onDeleteTicket }) => {
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' } | null>({ key: 'completionDate', direction: 'descending' });
     const [showArchive, setShowArchive] = useState(false);
 
@@ -167,6 +169,27 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
                 .priority-pill.priority-high { background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.3); }
                 .priority-pill.priority-medium { background-color: rgba(255, 193, 7, 0.1); color: #d97706; border-color: rgba(255, 193, 7, 0.3); }
                 .priority-pill.priority-low { background-color: rgba(25, 135, 84, 0.1); color: var(--accent-success); border-color: rgba(25, 135, 84, 0.3); }
+                .actions-cell { text-align: center; }
+                .btn-delete {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--text-muted);
+                    padding: 0.5rem;
+                    border-radius: 50%;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: var(--transition-smooth);
+                }
+                .btn-delete:hover {
+                    color: var(--accent-danger);
+                    background-color: rgba(220, 53, 69, 0.1);
+                }
+                .btn-delete svg {
+                    width: 18px;
+                    height: 18px;
+                }
             `}</style>
             <div className="erledigt-header">
                 <p className="erledigt-info">
@@ -188,6 +211,7 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
                         <SortableHeader sortKey="entryDate">Eingang</SortableHeader>
                         <SortableHeader sortKey="dueDate">Fällig bis</SortableHeader>
                         <SortableHeader sortKey="completionDate">Abgeschlossen am</SortableHeader>
+                        <th></th>
                     </tr>
                     </thead>
                     <tbody>
@@ -204,10 +228,19 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
                             <td>{ticket.entryDate}</td>
                             <td>{ticket.dueDate}</td>
                             <td>{ticket.completionDate || 'N/A'}</td>
+                            <td className="actions-cell" onClick={e => e.stopPropagation()}>
+                                <button
+                                    className="btn-delete"
+                                    title="Ticket endgültig löschen"
+                                    onClick={() => onDeleteTicket(ticket.id)}
+                                >
+                                    <TrashIcon />
+                                </button>
+                            </td>
                         </tr>
                     )) : (
                         <tr>
-                            <td colSpan={8} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
+                            <td colSpan={9} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
                                 {showArchive ? 'Keine Tickets im Archiv gefunden.' : 'Keine Tickets in den letzten 30 Tagen abgeschlossen.'}
                             </td>
                         </tr>

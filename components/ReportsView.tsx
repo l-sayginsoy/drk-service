@@ -198,15 +198,11 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         const resolvedTickets = filteredTickets.filter(t => t.completionDate && t.entryDate);
         let avgResolutionTime = 0;
         if (resolvedTickets.length > 0) {
-            // FIX: Explicitly type accumulator to ensure correct type inference.
             const totalTime = resolvedTickets.reduce((acc: number, t) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
-                // FIX: Explicitly check for valid dates to ensure correct types for arithmetic operation.
-                // FIX: Use .getTime() for robust date subtraction to resolve arithmetic operation error.
                 if (entry && completion) {
-                    // FIX: Use .getTime() for date subtraction to perform arithmetic operation on numbers.
-                    // The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+                    // FIX: Use .getTime() for robust date subtraction to resolve arithmetic operation error.
                     return acc + (completion.getTime() - entry.getTime());
                 }
                 return acc;
@@ -225,10 +221,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
     }, [filteredTickets]);
 
     const ticketsByTechnician = useMemo(() => {
-        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
-        // FIX: Cast initial value of reduce to Record<string, number> to correctly type `acc`.
         // FIX: Explicitly type accumulator in reduce to fix potential type inference issues.
-        // FIX: Explicitly typing the accumulator for the reduce function.
         const counts = filteredTickets.reduce((acc: Record<string, number>, ticket) => {
             if (ticket.technician && ticket.technician !== 'N/A') {
                  acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
@@ -248,7 +241,6 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         if (totalActiveTickets === 0) return [];
         
         // FIX: Explicitly type accumulator in reduce to fix potential type inference issues.
-        // FIX: Explicitly typing the accumulator for the reduce function.
         const counts = activeTickets.reduce((acc: Record<string, number>, ticket) => {
              if (ticket.technician && ticket.technician !== 'N/A') {
                 acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
