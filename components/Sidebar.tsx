@@ -47,8 +47,8 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
         { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
         { type: 'view', viewName: 'reports', icon: <BarChartIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
-        { type: 'action', action: 'newTicket', icon: <DocumentPlusIcon />, label: 'Neues Ticket', requiredRoles: [Role.Admin, Role.Technician], onClick: onNewTicketClick },
         { type: 'view', viewName: 'settings', icon: <SlidersIcon />, label: 'Settings', requiredRoles: [Role.Admin] },
+        { type: 'action', action: 'newTicket', icon: <DocumentPlusIcon />, label: 'Neues Ticket', requiredRoles: [Role.Admin, Role.Technician], onClick: onNewTicketClick },
     ];
 
     const NavItem: React.FC<{viewName: string, icon: React.ReactNode, label: string}> = ({ viewName, icon, label }) => (
@@ -88,21 +88,20 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                     border-right: 1px solid var(--border);
                     display: flex;
                     flex-direction: column;
-                    padding: 1.5rem 1rem;
-                    transition: width 0.3s ease, background-color 0.3s ease;
+                    padding: 2rem 1rem;
+                    transition: width 0.3s ease, background-color 0.3s ease, padding 0.3s ease;
                     flex-shrink: 0;
                 }
                 .sidebar.collapsed {
                     width: 88px;
-                    padding: 1.5rem 0.5rem;
+                    padding: 2rem 0.5rem;
                 }
                 .sidebar-header {
                     display: flex;
                     justify-content: flex-start;
                     align-items: center;
-                    gap: 0.5rem;
                     padding: 0 0.5rem;
-                    margin-bottom: 2.5rem;
+                    margin-bottom: 1rem;
                     transition: padding 0.3s ease, margin-bottom 0.3s ease, height 0.3s ease;
                     height: 50px;
                 }
@@ -116,7 +115,6 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                     justify-content: center;
                 }
                 .sidebar-logo-container {
-                     flex-grow: 1;
                      max-width: 100%;
                      overflow: hidden;
                      transition: opacity 0.3s ease, width 0.3s ease;
@@ -141,11 +139,21 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                     object-fit: contain;
                 }
                 
+                .sidebar-toggle-container {
+                    display: flex;
+                    justify-content: flex-end;
+                    padding: 0 0.5rem;
+                    margin-bottom: 1rem;
+                }
+                .sidebar.collapsed .sidebar-toggle-container {
+                    justify-content: center;
+                }
+                
                 .nav-menu {
                     flex-grow: 1;
                     overflow-y: auto; /* Allow vertical scroll if needed */
                     overflow-x: hidden; /* Prevent horizontal scroll */
-                    margin-top: 1.5rem;
+                    margin-top: 0;
                 }
                 .sidebar.collapsed .nav-menu {
                     overflow: visible; /* Allow popovers to show */
@@ -331,12 +339,11 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                 .sidebar-footer {
                     padding-top: 1.5rem;
                     border-top: 1px solid var(--border);
-                    transition: border-color 0.3s ease;
-                    overflow: hidden;
-                }
-                 .sidebar.collapsed .sidebar-footer {
                     display: flex;
                     flex-direction: column;
+                    gap: 0.75rem;
+                }
+                 .sidebar.collapsed .sidebar-footer {
                     align-items: center;
                 }
 
@@ -372,7 +379,9 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                     alt="DRK Kreuz Logo"
                     className="sidebar-icon-logo"
                 />
-                 <button 
+            </div>
+            <div className="sidebar-toggle-container">
+                <button 
                     className="collapse-toggle" 
                     onClick={() => setCollapsed(!isCollapsed)} 
                     title={isCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
@@ -431,9 +440,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
                 </div>
             </nav>
             <div className="sidebar-footer">
-                <div style={{ marginBottom: '1rem' }}>
-                    <ThemeToggle theme={theme} setTheme={setTheme} isCollapsed={isCollapsed} />
-                </div>
+                <ThemeToggle theme={theme} setTheme={setTheme} isCollapsed={isCollapsed} />
                 <button className="nav-item" title={isCollapsed ? (userName ?? '') : ''}>
                      <Avatar name={userName ?? 'Benutzer'} />
                      <span className="nav-label">{userName ?? 'Benutzer'}</span>

@@ -22,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ stats, filters, setFilters, currentView
             case 'tickets': return 'Aktuelle Tickets';
             case 'erledigt': return 'Abgeschlossen';
             case 'techniker': return 'Techniker Übersicht';
-            case 'reports': return 'Reports';
+            case 'reports': return '';
             default: return 'Dashboard';
         }
     }

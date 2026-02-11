@@ -25,7 +25,7 @@ const LOCAL_STORAGE_KEY_ASSETS = 'facility-management-assets';
 const LOCAL_STORAGE_KEY_PLANS = 'facility-management-plans';
 const LOCAL_STORAGE_KEY_SETTINGS = 'facility-management-settings';
 
-const parseGermanDate = (dateStr: string): Date | null => {
+const parseGermanDate = (dateStr: string | undefined): Date | null => {
     if (!dateStr || dateStr === 'N/A') return null;
     const parts = dateStr.split('.');
     if (parts.length === 3) {
@@ -45,10 +45,52 @@ const parseISODate = (dateStr: string | undefined): Date | null => {
     return null;
 }
 
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_LONG_EDGE = 1600;
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > MAX_LONG_EDGE) {
+                        height *= MAX_LONG_EDGE / width;
+                        width = MAX_LONG_EDGE;
+                    }
+                } else {
+                    if (height > MAX_LONG_EDGE) {
+                        width *= MAX_LONG_EDGE / height;
+                        height = MAX_LONG_EDGE;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return reject(new Error('Canvas context not available'));
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+};
+
+
 const getFutureDateInGermanFormat = (days: number): string => {
     const today = new Date(2026, 1, 7); // February is month 1. Changed for Safari.
     today.setDate(today.getDate() + days);
     return today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const getFutureDateStringForUpdate = (days: number): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const getFormattedDate = () => {
@@ -174,9 +216,54 @@ const App: React.FC = () => {
     }
   }, []); // Runs once on app load
 
+  // Automatically set tickets to overdue and back
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let wasChanged = false;
+    const updatedTickets = tickets.map(ticket => {
+        if (ticket.status === Status.Abgeschlossen) {
+            return ticket;
+        }
+
+        const dueDate = parseGermanDate(ticket.dueDate);
+        if (!dueDate) return ticket;
+
+        const isPastDue = dueDate < today;
+
+        if (isPastDue && ticket.status !== Status.Ueberfaellig) {
+            wasChanged = true;
+            return { ...ticket, status: Status.Ueberfaellig };
+        } else if (!isPastDue && ticket.status === Status.Ueberfaellig) {
+            wasChanged = true;
+            return { ...ticket, status: Status.InArbeit };
+        }
+        
+        return ticket;
+    });
+
+    if (wasChanged) {
+        setTickets(updatedTickets);
+    }
+  }, [tickets]); // Reruns whenever tickets change
+
   const handleTicketUpdate = (updatedTicket: Ticket) => {
-    setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-    if (selectedTicket && selectedTicket.id === updatedTicket.id) setSelectedTicket(updatedTicket);
+    const originalTicket = tickets.find(t => t.id === updatedTicket.id);
+
+    // Auto-update due date when moving out of 'Overdue' status
+    if (originalTicket && originalTicket.status === Status.Ueberfaellig) {
+        if (updatedTicket.status === Status.Offen) {
+            updatedTicket.dueDate = getFutureDateStringForUpdate(3);
+        } else if (updatedTicket.status === Status.InArbeit) {
+            updatedTicket.dueDate = getFutureDateStringForUpdate(2);
+        }
+    }
+
+    setTickets(prev => prev.map(t => (t.id === updatedTicket.id ? updatedTicket : t)));
+    if (selectedTicket && selectedTicket.id === updatedTicket.id) {
+        setSelectedTicket(updatedTicket);
+    }
   };
 
   const handleAddNewTicket = (newTicketData: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority }, silent = false): string => {
@@ -308,11 +395,11 @@ const App: React.FC = () => {
         {selectedTicketIds.length > 0 && (currentView === 'tickets' || currentView === 'erledigt') ? (
              <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={()=>{}} onBulkDelete={()=>{}} onClearSelection={() => setSelectedTicketIds([])} />
         ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt' || currentView === 'techniker') &&
-            <FilterBar filters={filters} setFilters={setFilters} locations={locationOptionsWithCounts} technicians={activeTechnicians.map(t=>t.name)} statuses={STATUSES} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
+            <FilterBar filters={filters} setFilters={setFilters} locations={locationOptionsWithCounts} technicians={['Alle', ...activeTechnicians.map(t=>t.name)]} statuses={STATUSES} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
         )}
         {renderCurrentView()}
       </main>
-      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} locations={activeLocations.map(a => a.name)} technicians={activeTechnicians} appSettings={appSettings} />}
+      {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onSave={handleAddNewTicket} locations={activeLocations.map(a => a.name)} technicians={activeTechnicians} appSettings={appSettings} compressImage={compressImage}/>}
       {selectedTicket && <TicketDetailSidebar ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdateTicket={handleTicketUpdate} technicians={allTechnicianNames} statuses={Object.values(Status)} currentUser={currentUser} appSettings={appSettings} />}
     </div>
   );

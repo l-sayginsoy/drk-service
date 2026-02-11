@@ -3,6 +3,7 @@ import { Ticket, Priority, Status } from '../types';
 import { TECHNICIANS_DATA, statusColorMap } from '../constants';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CheckIcon } from './icons/CheckIcon';
+import { ClockIcon } from './icons/ClockIcon';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -11,11 +12,51 @@ interface TicketCardProps {
   selectedTicket: Ticket | null;
 }
 
-const ExclamationTriangleIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
+const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
     </svg>
 );
+
+const parseGermanDate = (dateStr: string | undefined): Date | null => {
+    if (!dateStr || dateStr === 'N/A') return null;
+    const parts = dateStr.split('.');
+    if (parts.length === 3) {
+        const year = parseInt(parts[2], 10);
+        const fullYear = year < 100 ? 2000 + year : year;
+        return new Date(fullYear, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    }
+    return null;
+};
+
+const parseDateFromNote = (note: string): Date | null => {
+    const match = note.match(/\((\w+\s?[\w.]*)\s(?:am\s)?(\d{1,2}\.\d{1,2}\.\d{4}),?\s(\d{2}:\d{2})\)$/);
+    if (match) {
+        const [, , dateStr] = match;
+        return parseGermanDate(dateStr);
+    }
+    return null;
+};
+
+const isStagnating = (ticket: Ticket): boolean => {
+    if (ticket.status !== Status.InArbeit) {
+        return false;
+    }
+    // Use a fixed date for consistent demo behavior
+    const today = new Date(2026, 1, 7); 
+    const fiveDaysAgo = new Date(today);
+    fiveDaysAgo.setDate(today.getDate() - 5);
+
+    let lastActivityDate: Date | null = null;
+    if (ticket.notes && ticket.notes.length > 0) {
+        lastActivityDate = parseDateFromNote(ticket.notes[ticket.notes.length - 1]);
+    }
+    if (!lastActivityDate) {
+        lastActivityDate = parseGermanDate(ticket.entryDate);
+    }
+    return lastActivityDate ? lastActivityDate < fiveDaysAgo : false;
+};
+
 
 const formatTechnicianName = (name: string) => {
     const parts = name.split(' ');
@@ -25,35 +66,6 @@ const formatTechnicianName = (name: string) => {
     return name;
 };
 
-// Helper function to format the note text and style its metadata
-const formatNote = (note: string) => {
-    // Regex to capture: 1. Main text, 2. User, 3. Date, 4. Time
-    const noteRegex = /^(.*)\s\((.*)\s(?:am\s)?(\d{1,2}\.[\d]{1,2}\.[\d]{2,4}),?\s(\d{2}:\d{2})(?::\d{2})?\)$/;
-    const match = note.match(noteRegex);
-
-    if (match) {
-        const mainText = match[1];
-        const user = match[2];
-        const dateStr = match[3];
-        const time = match[4];
-
-        const [day, month, year] = dateStr.split('.');
-        const formattedDate = `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year.slice(-2)}`;
-        
-        const metaText = `(${user} ${formattedDate} ${time})`;
-
-        return (
-            <>
-                <span className="note-main-text">{mainText}</span>
-                <span className="note-meta-reformatted">{metaText}</span>
-            </>
-        );
-    }
-    // Fallback for notes without metadata structure
-    return <span className="note-main-text">{note}</span>;
-};
-
-
 const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelectTicket, selectedTicket }) => {
 
     const priorityClasses = {
@@ -62,21 +74,15 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
         [Priority.Niedrig]: 'priority-low',
     };
 
-    // Helper to convert DD.MM.YYYY to YYYY-MM-DD for date input
     const toInputDate = (dateStr: string) => {
         const parts = dateStr.split('.');
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
+        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
         return '';
     };
 
-    // Helper to convert YYYY-MM-DD from input to DD.MM.YYYY
     const fromInputDate = (dateStr: string) => {
         const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}.${parts[1]}.${parts[0]}`;
-        }
+        if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
         return '';
     };
 
@@ -108,20 +114,25 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
     const technicianOptions = ['N/A', ...TECHNICIANS_DATA.map(t => t.name)];
     
     const isEmergency = !!ticket.is_emergency;
+    const isTicketStagnating = isStagnating(ticket);
 
-    const Dropdown: React.FC<{ 
-        options: string[], 
-        selected: string, 
+    const Dropdown: React.FC<{
+        options: string[],
+        selected: string,
         onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void,
         className?: string
-    }> = ({ options, selected, onChange, className = '' }) => (
-        <div className={`custom-dropdown ${className}`} onClick={e => e.stopPropagation()}>
-            <span>{selected}</span> <ChevronDownIcon />
-            <select value={selected} onChange={onChange}>
-                {options.map(opt => <option key={opt} value={opt}>{opt === Status.Abgeschlossen ? 'Abschließen' : opt}</option>)}
-            </select>
-        </div>
-    );
+    }> = ({ options, selected, onChange, className = '' }) => {
+        const isValueInOptions = options.includes(selected);
+        return (
+            <div className={`custom-dropdown ${className}`} onClick={e => e.stopPropagation()}>
+                <span>{selected}</span> <ChevronDownIcon />
+                <select value={isValueInOptions ? selected : ""} onChange={onChange}>
+                    {!isValueInOptions && <option value="" disabled hidden>{selected}</option>}
+                    {options.map(opt => <option key={opt} value={opt}>{opt === Status.Abgeschlossen ? 'Abschließen' : opt}</option>)}
+                </select>
+            </div>
+        );
+    };
 
     const cardClasses = `ticket-card ${selectedTicket?.id === ticket.id ? 'selected' : ''} ${ticket.status === Status.Abgeschlossen ? 'status-done' : ''} ${isEmergency ? 'urgent-alert' : ''}`;
 
@@ -140,159 +151,60 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                     100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
                 }
                 .ticket-card {
-                    background: var(--bg-secondary);
-                    border-radius: var(--radius-md);
-                    margin-bottom: 1.5rem;
-                    box-shadow: var(--shadow-md);
-                    border-left: 5px solid transparent;
+                    background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: 1.5rem;
+                    box-shadow: var(--shadow-md); border-left: 5px solid transparent;
                     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
-                    padding: 1rem 1.25rem;
-                    position: relative;
+                    padding: 1rem 1.25rem; position: relative;
                 }
-                .ticket-card.urgent-alert {
-                    animation: pulse-border 1.5s infinite;
-                    border-color: var(--accent-danger) !important;
-                }
-                .ticket-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: var(--shadow-lg);
-                }
-                .ticket-card.dragging {
-                    opacity: 0.5;
-                    transform: rotate(3deg);
-                }
-                .ticket-card.selected {
-                    background-color: var(--border);
-                    box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-lg);
-                }
-                .ticket-card.status-done { 
-                    opacity: 0.8; 
-                }
+                .ticket-card.urgent-alert { animation: pulse-border 1.5s infinite; border-color: var(--accent-danger) !important; }
+                .ticket-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+                .ticket-card.dragging { opacity: 0.5; transform: rotate(3deg); }
+                .ticket-card.selected { background-color: var(--border); box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-lg); }
                 
-                .card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    gap: 1rem;
-                    margin-bottom: 0.5rem;
-                }
-                .card-id {
-                    font-size: 0.8rem;
-                    color: var(--text-muted);
-                    background: var(--bg-tertiary);
-                    padding: 0.1rem 0.5rem;
-                    border-radius: var(--radius-sm);
-                    flex-shrink: 0;
-                    margin-top: 0.2rem;
-                }
+                .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
                 .card-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; flex-grow: 1;}
                 .card-location { font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
                 .card-location span { font-weight: normal; color: var(--text-muted); }
                 .card-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; }
                 
-                .card-header-indicator {
-                    margin-top: 0.5rem;
-                }
-                .urgent-icon { color: var(--accent-danger); margin-left: -0.25rem; }
+                .card-icons { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-shrink: 0; }
+                .urgent-icon { color: var(--accent-danger); }
+                .stagnating-icon { color: var(--accent-primary); }
                 
-                .card-actions-grid {
-                    display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 0.75rem;
-                    margin-top: 1rem;
-                }
-                .action-item {
-                    font-size: 0.8rem;
-                    position: relative; /* For dropdown positioning */
-                }
-                .action-label {
-                    color: var(--text-muted);
-                    margin-bottom: 0.25rem;
-                    font-size: 0.75rem;
-                    text-align: center;
-                }
+                .card-actions-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+                .action-item { font-size: 0.8rem; position: relative; }
+                .action-label { color: var(--text-muted); margin-bottom: 0.25rem; font-size: 0.75rem; text-align: center; }
                 .action-value-box, .details-btn, .custom-dropdown, .date-input-wrapper {
-                    background: var(--bg-tertiary);
-                    border: 1px solid var(--border);
-                    border-radius: var(--radius-md);
-                    padding: 0.25rem 0.75rem;
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    color: var(--text-secondary);
-                    width: 100%;
-                    text-align: center;
+                    background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.25rem 0.75rem;
+                    font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); width: 100%; text-align: center;
                     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-                    height: 29px; /* fixed height */
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
+                    height: 29px; display: flex; align-items: center; justify-content: center;
                 }
-                .action-value-box.priority-high {
-                    background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.3); font-weight: 600;
-                }
-                .action-value-box.emergency {
-                    background-color: var(--accent-danger);
-                    color: white;
-                    border-color: var(--accent-danger);
-                    font-weight: 600;
-                }
-                .date-input-wrapper {
-                    position: relative;
-                }
-                .date-input-wrapper input[type="date"] {
-                    position: absolute;
-                    top: 0; left: 0;
-                    width: 100%; height: 100%;
-                    opacity: 0;
-                    cursor: pointer;
-                }
-                 .date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
-                    width: 100%; height: 100%;
-                    cursor: pointer;
-                }
-
-                .custom-dropdown {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.25rem;
-                    position: relative;
-                    cursor: pointer;
-                }
+                .action-value-box.emergency { background-color: var(--accent-danger); color: white; border-color: var(--accent-danger); font-weight: 600; }
+                .date-input-wrapper { position: relative; }
+                .date-input-wrapper input[type="date"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+                .date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator { width: 100%; height: 100%; cursor: pointer; }
+                .custom-dropdown { display: flex; align-items: center; justify-content: center; gap: 0.25rem; position: relative; cursor: pointer; }
                 .custom-dropdown.priority-high { background-color: rgba(220, 53, 69, 0.1); color: #c82333; border-color: rgba(220, 53, 69, 0.3); font-weight: 600; }
                 .custom-dropdown.priority-medium { background-color: rgba(255, 193, 7, 0.1); color: #d97706; border-color: rgba(255, 193, 7, 0.3); font-weight: 600; }
                 .custom-dropdown.priority-low { background-color: rgba(25, 135, 84, 0.1); color: var(--accent-success); border-color: rgba(25, 135, 84, 0.3); font-weight: 600; }
-
-                .custom-dropdown span {
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .custom-dropdown select {
-                    position: absolute;
-                    top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
-                }
+                .custom-dropdown span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .custom-dropdown select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
                 .custom-dropdown svg { width: 14px; height: 14px; flex-shrink: 0; }
-                
-                .details-btn {
-                    cursor: pointer;
-                    color: var(--text-muted);
-                }
+                .details-btn { cursor: pointer; color: var(--text-muted); }
                 .details-btn:hover, .custom-dropdown:hover, .date-input-wrapper:hover {
-                    background: var(--border);
-                    border-color: var(--accent-primary);
-                    color: var(--text-primary);
+                    background: var(--border); border-color: var(--accent-primary); color: var(--text-primary);
                     box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
                 }
-                .custom-dropdown.priority-high:hover { background-color: rgba(220, 53, 69, 0.2); }
-                .custom-dropdown.priority-medium:hover { background-color: rgba(255, 193, 7, 0.2); }
-                .custom-dropdown.priority-low:hover { background-color: rgba(25, 135, 84, 0.2); }
             `}</style>
             
             <div className="card-header">
-                {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                 <h3 className="card-title">{ticket.title}</h3>
-                {ticket.hasNewNoteFromReporter && <span className="new-note-indicator card-header-indicator" title="Neue Notiz vom Melder"></span>}
+                <div className="card-icons">
+                    {isTicketStagnating && <ClockIcon className="stagnating-icon" title="Ticket stagniert (> 5 Tage keine Notiz)" width="24" height="24" />}
+                    {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon width="24" height="24" /></span>}
+                    {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
+                </div>
             </div>
             <p className="card-location">{ticket.area} <span>›</span> {ticket.location}</p>
             <p className="card-meta">Gemeldet: {ticket.reporter}</p>
@@ -306,12 +218,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                     <div className="action-label">Fällig bis</div>
                     <div className="date-input-wrapper">
                         <span>{ticket.dueDate}</span>
-                        <input 
-                            type="date" 
-                            value={toInputDate(ticket.dueDate)}
-                            onChange={handleDueDateChange}
-                            onClick={e => e.stopPropagation()}
-                        />
+                        <input type="date" value={toInputDate(ticket.dueDate)} onChange={handleDueDateChange} onClick={e => e.stopPropagation()} />
                     </div>
                 </div>
                 <div className="action-item">
@@ -324,11 +231,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
                 </div>
                 <div className="action-item">
                     <div className="action-label">Status</div>
-                    <Dropdown 
-                        options={Object.values(Status).filter(s => s !== Status.Ueberfaellig)} 
-                        selected={ticket.status} 
-                        onChange={handleStatusChange} 
-                    />
+                    <Dropdown options={Object.values(Status).filter(s => s !== Status.Ueberfaellig)} selected={ticket.status} onChange={handleStatusChange} />
                 </div>
                  <div className="action-item">
                     <div className="action-label">Haustechniker</div>

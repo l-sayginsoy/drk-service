@@ -3,6 +3,7 @@ import { Ticket, Status, Priority, GroupableKey } from '../types';
 import { SortAscendingIcon } from './icons/SortAscendingIcon';
 import { SortDescendingIcon } from './icons/SortDescendingIcon';
 import { statusColorMap, statusBgColorMap, statusBorderColorMap } from '../constants';
+import { ClockIcon } from './icons/ClockIcon';
 
 interface TicketTableViewProps {
   tickets: Ticket[];
@@ -28,6 +29,45 @@ interface GroupedTickets {
 
 type ProcessedTickets = FlatTickets | GroupedTickets;
 
+const parseGermanDate = (dateStr: string | undefined): Date | null => {
+    if (!dateStr || dateStr === 'N/A') return null;
+    const parts = dateStr.split('.');
+    if (parts.length === 3) {
+        const year = parseInt(parts[2], 10);
+        const fullYear = year < 100 ? 2000 + year : year;
+        return new Date(fullYear, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    }
+    return null;
+};
+
+const parseDateFromNote = (note: string): Date | null => {
+    const match = note.match(/\((\w+\s?[\w.]*)\s(?:am\s)?(\d{1,2}\.\d{1,2}\.\d{4}),?\s(\d{2}:\d{2})\)$/);
+    if (match) {
+        const [, , dateStr] = match;
+        return parseGermanDate(dateStr);
+    }
+    return null;
+};
+
+const isStagnating = (ticket: Ticket): boolean => {
+    if (ticket.status !== Status.InArbeit) {
+        return false;
+    }
+    const today = new Date(2026, 1, 7); 
+    const fiveDaysAgo = new Date(today);
+    fiveDaysAgo.setDate(today.getDate() - 5);
+
+    let lastActivityDate: Date | null = null;
+    if (ticket.notes && ticket.notes.length > 0) {
+        lastActivityDate = parseDateFromNote(ticket.notes[ticket.notes.length - 1]);
+    }
+    if (!lastActivityDate) {
+        lastActivityDate = parseGermanDate(ticket.entryDate);
+    }
+    return lastActivityDate ? lastActivityDate < fiveDaysAgo : false;
+};
+
+
 const getTicketSortPriority = (ticket: Ticket): number => {
     if (ticket.is_emergency) return 0; // Highest priority
     if (ticket.status === Status.Ueberfaellig) return 1; // Second highest
@@ -35,7 +75,7 @@ const getTicketSortPriority = (ticket: Ticket): number => {
 };
 
 const ExclamationTriangleIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="20" height="20">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
     </svg>
 );
@@ -199,6 +239,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
 
      const renderTicketRow = (ticket: Ticket) => {
          const isEmergency = !!ticket.is_emergency;
+         const isTicketStagnating = isStagnating(ticket);
          const rowClasses = [
             (selectedTicketIds.includes(ticket.id) || selectedTicket?.id === ticket.id) ? 'selected' : '',
             isEmergency ? 'urgent-alert' : '',
@@ -212,15 +253,28 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 <td>
                   <div className="ticket-id-cell">
                     {ticket.id}
-                    {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                     {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
                   </div>
                 </td>
-                <td>
-                    <div className="ticket-title">{ticket.title}</div>
-                    <small style={{color: 'var(--text-muted)'}}>{ticket.location}</small>
+                <td className="icons-cell">
+                    <div className="icons-cell-content">
+                        {isTicketStagnating && <ClockIcon className="stagnating-icon" title="Ticket stagniert (> 5 Tage keine Notiz)" />}
+                        {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
+                    </div>
                 </td>
-                <td>{ticket.area}</td>
+                <td>
+                    <div className="ticket-title-cell">
+                        <div>
+                            <div className="ticket-title">{ticket.title}</div>
+                            <small style={{color: 'var(--text-muted)'}}>{ticket.location}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div className="area-cell">
+                        <span>{ticket.area}</span>
+                    </div>
+                </td>
                 <td>{formatTechnicianName(ticket.technician)}</td>
                 <td><StatusPill status={ticket.status} /></td>
                 <td>
@@ -238,7 +292,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
 
     const noTicketsRow = (
          <tr>
-            <td colSpan={9} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
+            <td colSpan={10} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
                 Keine Tickets für die aktuellen Filter gefunden.
             </td>
          </tr>
@@ -262,7 +316,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     <tbody>
                         {groupedData.flatMap(([groupName, groupTickets]) => [
                             <tr key={`header-${groupName}`} className="group-header">
-                                <td colSpan={9}>
+                                <td colSpan={10}>
                                     <div className="group-header-content">
                                         {getGroupHeaderLabel(groupBy as GroupableKey, groupName)}
                                         <span className="group-count">{groupTickets.length} Ticket{groupTickets.length !== 1 ? 's' : ''}</span>
@@ -307,6 +361,25 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     padding-right: 0.5rem;
                     width: 1%;
                 }
+                .ticket-table th.icons-header-cell,
+                .ticket-table td.icons-cell {
+                    width: 1%;
+                    padding: 1rem 0.5rem;
+                    text-align: center;
+                    vertical-align: middle;
+                }
+                .icons-cell-content {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.75rem;
+                }
+                .stagnating-icon {
+                    color: var(--accent-primary);
+                    width: 20px;
+                    height: 20px;
+                }
+
                 .ticket-table th {
                   color: var(--text-muted);
                   font-weight: 500;
@@ -368,6 +441,14 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                     gap: 0.75rem;
                 }
                 .urgent-icon { color: var(--accent-danger); }
+                .ticket-title-cell {
+                    /* Icon moved to area column, flex properties removed */
+                }
+                .area-cell {
+                    display: flex;
+                    align-items: center;
+                    gap: 0rem;
+                }
                 .ticket-title {
                     font-weight: 500;
                     color: var(--text-primary);
@@ -470,6 +551,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                         <input type="checkbox" ref={selectAllCheckboxRef} onChange={handleSelectAll} />
                     </th>
                     <SortableHeader sortKey="id">Ticket</SortableHeader>
+                    <th className="icons-header-cell"></th>
                     <SortableHeader sortKey="title">Betreff</SortableHeader>
                     <SortableHeader sortKey="area">Bereich</SortableHeader>
                     <SortableHeader sortKey="technician">Techniker</SortableHeader>

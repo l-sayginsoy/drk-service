@@ -217,7 +217,11 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                             </td>
                             <td className="actions-cell">
                                 <button className="btn btn-secondary" onClick={() => handleOpenUserModal(user)}>Bearbeiten</button>
-                                {user.role !== Role.Admin && <button className="btn btn-danger" onClick={() => handleDeleteUser(user.id)} title="Löschen"><TrashIcon /></button>}
+                                {user.role !== Role.Admin ? (
+                                    <button className="btn btn-danger" onClick={() => handleDeleteUser(user.id)} title="Löschen"><TrashIcon /></button>
+                                ) : (
+                                    <button className="btn btn-danger" disabled style={{ cursor: 'not-allowed', opacity: 0.5 }} title="Admin kann nicht gelöscht werden"><TrashIcon /></button>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -301,7 +305,7 @@ const SettingsView: React.FC<SettingsViewProps> = (props) => {
                 .btn-secondary:hover { background-color: var(--border); color: var(--text-primary); }
                 .btn-full-width { width: 100%; }
                 .btn-danger { color: var(--accent-danger); background: none; border: none; }
-                 .btn-danger:hover { background-color: rgba(220, 53, 69, 0.1); }
+                 .btn-danger:hover:not(:disabled) { background-color: rgba(220, 53, 69, 0.1); }
                 .btn-danger-sm { background: none; border: none; color: var(--text-muted); padding: 0.5rem; }
                 .btn-danger-sm:hover { color: var(--accent-danger); background: rgba(220, 53, 69, 0.1); border-radius: 50%; }
                 

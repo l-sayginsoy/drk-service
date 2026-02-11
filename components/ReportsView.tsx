@@ -48,7 +48,7 @@ const StatCard: React.FC<{ title: string; value: string | number; description?: 
     </div>
 );
 
-const HorizontalBarChart: React.FC<{ title: string; data: { label: string; value: number }[]; barColor: string; valueSuffix?: string; }> = ({ title, data, barColor, valueSuffix = '' }) => {
+const HorizontalBarChart: React.FC<{ title: string; data: { label: string; value: number; color?: string }[]; barColor?: string; valueSuffix?: string; }> = ({ title, data, barColor, valueSuffix = '' }) => {
     const maxValue = Math.max(...data.map(d => d.value), 1);
     return (
         <div className="chart-container">
@@ -59,7 +59,7 @@ const HorizontalBarChart: React.FC<{ title: string; data: { label: string; value
                         <div className="h-bar-row" key={item.label} style={{ animationDelay: `${index * 50}ms` }}>
                             <span className="h-bar-label" title={item.label}>{item.label}</span>
                             <div className="h-bar-wrapper">
-                                <div className="h-bar" style={{ '--bar-width': `${(item.value / maxValue) * 100}%`, '--bar-color': barColor } as React.CSSProperties}></div>
+                                <div className="h-bar" style={{ '--bar-width': `${(item.value / maxValue) * 100}%`, '--bar-color': item.color || barColor } as React.CSSProperties}></div>
                             </div>
                             <span className="h-bar-value">{item.value.toFixed(item.value % 1 === 0 ? 0 : 1)}{valueSuffix}</span>
                         </div>
@@ -203,7 +203,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
                 // FIX: Explicitly check for valid dates to ensure correct types for arithmetic operation.
+                // FIX: Use .getTime() for robust date subtraction to resolve arithmetic operation error.
                 if (entry && completion) {
+                    // FIX: Use .getTime() for date subtraction to perform arithmetic operation on numbers.
+                    // The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
                     return acc + (completion.getTime() - entry.getTime());
                 }
                 return acc;
@@ -223,7 +226,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
 
     const ticketsByTechnician = useMemo(() => {
         // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
-        const counts = filteredTickets.reduce((acc, ticket) => {
+        // FIX: Cast initial value of reduce to Record<string, number> to correctly type `acc`.
+        // FIX: Explicitly type accumulator in reduce to fix potential type inference issues.
+        // FIX: Explicitly typing the accumulator for the reduce function.
+        const counts = filteredTickets.reduce((acc: Record<string, number>, ticket) => {
             if (ticket.technician && ticket.technician !== 'N/A') {
                  acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
             }
@@ -231,13 +237,29 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
         }, {} as Record<string, number>);
 
         const sorted = Object.entries(counts).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-        const top5 = sorted.slice(0, 5);
-        // FIX: With the accumulator correctly typed above, this reduce will now correctly infer types and avoid the '+' operator error.
-        const othersValue = sorted.slice(5).reduce((sum, item) => sum + item.value, 0);
-        if (othersValue > 0) top5.push({ label: 'Andere', value: othersValue });
         
-        const colors = ['#0d6efd', '#6f42c1', '#dc3545', '#fd7e14', '#198754', '#6c757d'];
-        return top5.map((item, index) => ({...item, color: colors[index % colors.length]}));
+        const colors = ['#0d6efd', '#6f42c1', '#dc3545', '#fd7e14', '#198754', '#6c757d', '#343a40', '#adb5bd'];
+        return sorted.map((item, index) => ({...item, color: colors[index % colors.length]}));
+    }, [filteredTickets]);
+
+    const technicianWorkload = useMemo(() => {
+        const activeTickets = filteredTickets.filter(t => t.status !== Status.Abgeschlossen);
+        const totalActiveTickets = activeTickets.length;
+        if (totalActiveTickets === 0) return [];
+        
+        // FIX: Explicitly type accumulator in reduce to fix potential type inference issues.
+        // FIX: Explicitly typing the accumulator for the reduce function.
+        const counts = activeTickets.reduce((acc: Record<string, number>, ticket) => {
+             if (ticket.technician && ticket.technician !== 'N/A') {
+                acc[ticket.technician] = (acc[ticket.technician] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        return Object.entries(counts)
+            .map(([label, value]) => ({ label, value: (value / totalActiveTickets) * 100 }))
+            .sort((a, b) => b.value - a.value);
+
     }, [filteredTickets]);
     
     const ticketTrendData = useMemo(() => {
@@ -319,6 +341,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 .chart-container.full-width { grid-column: 1 / -1; }
                 .chart-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.5rem; flex-shrink: 0; }
                 
+                .technician-charts-stack { display: flex; flex-direction: column; gap: 2rem; }
+
                 /* Horizontal Bar Chart */
                 .h-bar-chart { display: flex; flex-direction: column; gap: 1rem; }
                 .h-bar-row { display: grid; grid-template-columns: 100px 1fr 40px; gap: 0.75rem; align-items: center; animation: slideIn 0.5s ease-out forwards; opacity: 0; }
@@ -328,18 +352,6 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 .h-bar { height: 100%; border-radius: 4px; background: var(--bar-color, var(--accent-primary)); width: var(--bar-width, 0%); transition: width 0.5s ease-out; }
                 .h-bar-value { font-size: 0.8rem; font-weight: 500; color: var(--text-primary); text-align: right; }
                 
-                /* Doughnut Chart */
-                .doughnut-chart-area { display: flex; align-items: center; gap: 2rem; flex-grow: 1; }
-                .doughnut-chart { width: 150px; height: 150px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; }
-                .doughnut-center { width: 90px; height: 90px; background-color: var(--bg-secondary); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                .doughnut-total-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
-                .doughnut-total-label { font-size: 0.8rem; color: var(--text-muted); }
-                .doughnut-legend { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; }
-                .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
-                .legend-color-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-                .legend-label { color: var(--text-secondary); flex-grow: 1; }
-                .legend-value { font-weight: 600; color: var(--text-primary); }
-
                 /* Line Chart */
                 .line-chart-area { flex-grow: 1; display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; }
                 .y-axis { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; text-align: right; padding-right: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
@@ -347,7 +359,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 .line-chart-svg-wrapper svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
                 .x-axis { grid-column: 2; grid-row: 2; display: flex; justify-content: space-between; padding-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
                 .line-chart-legend { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: center; gap: 1.5rem; padding-top: 1rem; }
-
+                .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+                .legend-color-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
             `}</style>
             <div className="reports-header">
                 <h1 className="reports-title">Reports & Analysen</h1>
@@ -376,7 +389,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
             
             <div className="charts-grid">
                 <HorizontalBarChart title="Top 8 Bereiche nach Ticketaufkommen" data={ticketsByArea} barColor="linear-gradient(90deg, #fd7e14, #dc3545)" />
-                <DoughnutChart title="Ticket-Verteilung pro Techniker" data={ticketsByTechnician} />
+                <div className="technician-charts-stack">
+                    <HorizontalBarChart title="Ticket-Verteilung pro Techniker" data={ticketsByTechnician} />
+                    <HorizontalBarChart title="Prozentuale Auslastung (Aktive Tickets)" data={technicianWorkload} barColor="linear-gradient(90deg, #198754, #0d6efd)" valueSuffix="%" />
+                </div>
                 {reportFilters.timeRange !== 'all' && (
                     <LineChart title={`Ticket-Trend (${timeRangeOptions[reportFilters.timeRange]})`} data={ticketTrendData} />
                 )}
