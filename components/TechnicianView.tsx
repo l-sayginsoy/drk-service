@@ -41,12 +41,14 @@ const TechnicianView: React.FC<TechnicianViewProps> = ({ tickets, technicians, o
 
             const completedLast30Days = assignedTickets.filter(t => {
                 const completionDate = parseGermanDate(t.completionDate);
-                return completionDate && completionDate >= thirtyDaysAgo && completionDate <= today;
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
+                return completionDate && completionDate.getTime() >= thirtyDaysAgo.getTime() && completionDate.getTime() <= today.getTime();
             }).length;
 
             const completedPrev30Days = assignedTickets.filter(t => {
                 const completionDate = parseGermanDate(t.completionDate);
-                return completionDate && completionDate >= sixtyDaysAgo && completionDate < thirtyDaysAgo;
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
+                return completionDate && completionDate.getTime() >= sixtyDaysAgo.getTime() && completionDate.getTime() < thirtyDaysAgo.getTime();
             }).length;
 
             let performanceTrend: 'up' | 'down' | 'neutral' = 'neutral';

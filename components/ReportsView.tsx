@@ -182,6 +182,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 if (!entryDate) return false;
                 const days = { '7d': 7, '30d': 30, '90d': 90 };
                 const cutOffDate = new Date(today); cutOffDate.setDate(today.getDate() - days[reportFilters.timeRange]);
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
                 if (entryDate.getTime() < cutOffDate.getTime()) return false;
             }
             if (reportFilters.area !== 'Alle' && ticket.area !== reportFilters.area) return false;
@@ -202,7 +203,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
                 const entry = parseGermanDate(t.entryDate);
                 const completion = parseGermanDate(t.completionDate);
                 if (entry && completion) {
-                    // FIX: Use .getTime() for robust date subtraction to resolve arithmetic operation error.
+// FIX: Use .getTime() for robust date subtraction to resolve arithmetic operation error.
                     return acc + (completion.getTime() - entry.getTime());
                 }
                 return acc;
@@ -213,7 +214,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ tickets }) => {
     }, [filteredTickets]);
 
     const ticketsByArea = useMemo(() => {
-        const counts = filteredTickets.reduce((acc, ticket) => {
+        const counts = filteredTickets.reduce((acc: Record<string, number>, ticket) => {
             acc[ticket.area] = (acc[ticket.area] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);

@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -207,7 +209,8 @@ const App: React.FC = () => {
                   if (t.priority === Priority.Hoch) return true;
                   if (t.status === Status.Ueberfaellig) return true;
                   const dueDate = parseGermanDate(t.dueDate);
-                  if (dueDate && dueDate <= threeDaysFromNow) return true;
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
+                  if (dueDate && dueDate.getTime() <= threeDaysFromNow.getTime()) return true;
                   return false;
               });
 
@@ -250,7 +253,8 @@ const App: React.FC = () => {
         if (!lastGenerated) return false;
         const nextDueDate = new Date(lastGenerated);
         nextDueDate.setDate(nextDueDate.getDate() + plan.intervalDays);
-        return nextDueDate <= today;
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
+        return nextDueDate.getTime() <= today.getTime();
     });
 
     if (duePlans.length > 0) {
@@ -300,7 +304,8 @@ const App: React.FC = () => {
         const dueDate = parseGermanDate(ticket.dueDate);
         if (!dueDate) return ticket;
 
-        const isPastDue = dueDate < today;
+// FIX: Use .getTime() for robust date comparison to resolve arithmetic operation error.
+        const isPastDue = dueDate.getTime() < today.getTime();
 
         if (isPastDue && ticket.status !== Status.Ueberfaellig) {
             wasChanged = true;

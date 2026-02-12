@@ -11,7 +11,7 @@ import { Role, Ticket, Status, AppSettings } from '../types';
 import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
-import { TicketIcon } from './icons/TicketIcon';
+import { ClipboardIcon } from './icons/ClipboardIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { BarChartIcon } from './icons/BarChartIcon';
 
@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ appSettings, isCollapsed, setCollapse
     
     const navItems = [
         { type: 'view', viewName: 'dashboard', icon: <LayoutDashboardIcon />, label: 'Dashboard', requiredRoles: [Role.Admin] },
-        { type: 'view', viewName: 'tickets', icon: <TicketIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
+        { type: 'view', viewName: 'tickets', icon: <ClipboardIcon />, label: 'Aktuelle Tickets', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'erledigt', icon: <CheckBadgeIcon />, label: 'Abgeschlossen', requiredRoles: [Role.Admin, Role.Technician] },
         { type: 'view', viewName: 'techniker', icon: <UserIcon />, label: 'Techniker', requiredRoles: [Role.Admin] },
         { type: 'view', viewName: 'reports', icon: <BarChartIcon />, label: 'Reports', requiredRoles: [Role.Admin] },
