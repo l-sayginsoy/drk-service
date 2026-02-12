@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -318,9 +319,19 @@ const App: React.FC = () => {
 
   const handleTicketUpdate = (updatedTicket: Ticket) => {
     const originalTicket = tickets.find(t => t.id === updatedTicket.id);
+    if (!originalTicket) return;
+
+    // If ticket is being completed, set completion date
+    if (updatedTicket.status === Status.Abgeschlossen && originalTicket.status !== Status.Abgeschlossen) {
+        updatedTicket.completionDate = new Date().toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
 
     // Auto-update due date when moving out of 'Overdue' status
-    if (originalTicket && originalTicket.status === Status.Ueberfaellig) {
+    if (originalTicket.status === Status.Ueberfaellig) {
         if (updatedTicket.status === Status.Offen) {
             updatedTicket.dueDate = getFutureDateStringForUpdate(3);
         } else if (updatedTicket.status === Status.InArbeit) {
@@ -351,7 +362,8 @@ const App: React.FC = () => {
     const determinedPriority = newTicketData.priority || category?.default_priority || appSettings.defaultPriority;
 
     // 2. Load-Balancing Technician Assignment
-    const assignedTechnician = assignTicket(newTicketData, users, tickets, appSettings.routingRules);
+    // FIX: Pass an object with only the properties needed by assignTicket to resolve type error.
+    const assignedTechnician = assignTicket({ title: newTicketData.title, description: newTicketData.description }, users, tickets, appSettings.routingRules);
 
     // 3. SLA-based Due Date Calculation
     const slaRule = appSettings.slaMatrix.find(r => r.categoryId === newTicketData.categoryId && r.priority === determinedPriority);

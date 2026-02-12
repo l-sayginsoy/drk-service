@@ -49,7 +49,7 @@ const ErledigtTableView: React.FC<ErledigtTableViewProps> = ({ tickets, onSelect
         if (showArchive) {
             return tickets;
         }
-        const today = new Date(2026, 1, 7);
+        const today = new Date();
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
 

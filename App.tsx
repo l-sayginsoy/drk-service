@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -318,9 +319,19 @@ const App: React.FC = () => {
 
   const handleTicketUpdate = (updatedTicket: Ticket) => {
     const originalTicket = tickets.find(t => t.id === updatedTicket.id);
+    if (!originalTicket) return;
+
+    // If ticket is being completed, set completion date
+    if (updatedTicket.status === Status.Abgeschlossen && originalTicket.status !== Status.Abgeschlossen) {
+        updatedTicket.completionDate = new Date().toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
 
     // Auto-update due date when moving out of 'Overdue' status
-    if (originalTicket && originalTicket.status === Status.Ueberfaellig) {
+    if (originalTicket.status === Status.Ueberfaellig) {
         if (updatedTicket.status === Status.Offen) {
             updatedTicket.dueDate = getFutureDateStringForUpdate(3);
         } else if (updatedTicket.status === Status.InArbeit) {
