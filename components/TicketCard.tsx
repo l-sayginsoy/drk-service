@@ -201,7 +201,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onUpdateTicket, onSelec
             <div className="card-header">
                 <h3 className="card-title">{ticket.title}</h3>
                 <div className="card-icons">
-                    {isTicketStagnating && <ClockIcon className="stagnating-icon" title="Ticket stagniert (> 5 Tage keine Notiz)" width="24" height="24" />}
+                    {isTicketStagnating && <span title="Ticket stagniert (> 5 Tage keine Notiz)"><ClockIcon className="stagnating-icon" width="24" height="24" /></span>}
                     {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon width="24" height="24" /></span>}
                     {ticket.hasNewNoteFromReporter && <span className="new-note-indicator" title="Neue Notiz vom Melder"></span>}
                 </div>

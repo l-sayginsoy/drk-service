@@ -233,7 +233,7 @@ const App: React.FC = () => {
               setTickets(ticketsToUpdate);
           }
       }
-  }, [users, prevUsers, tickets, appSettings.routingRules]);
+  }, [users, tickets, appSettings.routingRules]);
 
   // Maintenance Scheduler Simulation
   useEffect(() => {
@@ -244,8 +244,9 @@ const App: React.FC = () => {
     const duePlans = maintenancePlans.filter(plan => {
         const lastGenerated = parseISODate(plan.lastGenerated); // Changed for Safari
         if (!lastGenerated) return false;
-        lastGenerated.setDate(lastGenerated.getDate() + plan.intervalDays);
-        return lastGenerated <= today;
+        const nextDueDate = new Date(lastGenerated);
+        nextDueDate.setDate(nextDueDate.getDate() + plan.intervalDays);
+        return nextDueDate <= today;
     });
 
     if (duePlans.length > 0) {
@@ -409,7 +410,77 @@ const App: React.FC = () => {
         return true;
     });
   }, [tickets, filters, currentView, currentUser]);
-  
+
+    const handleExportCSV = () => {
+        if (filteredTickets.length === 0) {
+            alert("Keine Tickets zum Exportieren vorhanden.");
+            return;
+        }
+        const headers = ["ID", "Titel", "Bereich", "Ort", "Melder", "Eingang", "Fällig bis", "Status", "Techniker", "Priorität", "Abgeschlossen am"];
+        const escapeCsv = (str: string | undefined) => {
+            if (!str) return '""';
+            const escaped = str.replace(/"/g, '""');
+            return `"${escaped}"`;
+        };
+        const rows = filteredTickets.map(t => [
+            escapeCsv(t.id), escapeCsv(t.title), escapeCsv(t.area), escapeCsv(t.location),
+            escapeCsv(t.reporter), escapeCsv(t.entryDate), escapeCsv(t.dueDate),
+            escapeCsv(t.status), escapeCsv(t.technician), escapeCsv(t.priority),
+            escapeCsv(t.completionDate)
+        ].join(','));
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `tickets_${currentView}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    const handleExportPDF = () => {
+        if (filteredTickets.length === 0) {
+            alert("Keine Tickets zum Exportieren vorhanden.");
+            return;
+        }
+        const doc = new jsPDF();
+        const title = currentView === 'erledigt' ? 'Abgeschlossene Tickets' : 'Aktuelle Ticketliste';
+        const date = new Date().toLocaleDateString('de-DE');
+
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Exportiert am: ${date} | Filter: ${filters.area}, ${filters.technician}`, 14, 30);
+
+        const head = [['ID', 'Priorität', 'Titel', 'Bereich / Ort', 'Fällig', 'Techniker']];
+        const body = filteredTickets.map(t => [
+            t.id,
+            t.priority,
+            t.title,
+            `${t.area} (${t.location})`,
+            t.dueDate,
+            t.technician
+        ]);
+
+        autoTable(doc, {
+            startY: 35,
+            head: head,
+            body: body,
+            theme: 'striped',
+            headStyles: { fillColor: [33, 37, 41], textColor: 255, fontStyle: 'bold' },
+            willDrawCell: (data) => {
+                const ticket = filteredTickets[data.row.index];
+                if (ticket && (ticket.priority === Priority.Hoch || ticket.status === Status.Ueberfaellig || ticket.is_emergency)) {
+                    doc.setFillColor(255, 235, 238); // light red for high priority rows
+                }
+            },
+        });
+
+        const fileName = `tickets_${currentView}_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+    };
+
   const stats = useMemo(() => ({
       open: tickets.filter(t => t.status === Status.Offen).length,
       inProgress: tickets.filter(t => t.status === Status.InArbeit).length,
@@ -462,7 +533,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar appSettings={appSettings} isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.name} tickets={tickets} onNewTicketClick={() => setIsModalOpen(true)} onExportPDF={() => {}} onExportCSV={() => {}} />
+      <Sidebar appSettings={appSettings} isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} theme={theme} setTheme={setTheme} currentView={currentView} setCurrentView={changeView} onLogout={handleLogout} userRole={currentUser.role} userName={currentUser.name} tickets={tickets} onNewTicketClick={() => setIsModalOpen(true)} onExportPDF={handleExportPDF} onExportCSV={handleExportCSV} />
       <main>
         <Header stats={stats} filters={filters} setFilters={setFilters} currentView={currentView} />
         {selectedTicketIds.length > 0 && (currentView === 'tickets' || currentView === 'erledigt') ? (

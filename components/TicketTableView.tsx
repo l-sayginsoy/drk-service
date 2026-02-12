@@ -258,7 +258,7 @@ const TicketTableView: React.FC<TicketTableViewProps> = ({ tickets, onSelectTick
                 </td>
                 <td className="icons-cell">
                     <div className="icons-cell-content">
-                        {isTicketStagnating && <ClockIcon className="stagnating-icon" title="Ticket stagniert (> 5 Tage keine Notiz)" />}
+                        {isTicketStagnating && <span className="stagnating-icon" title="Ticket stagniert (> 5 Tage keine Notiz)"><ClockIcon /></span>}
                         {isEmergency && <span className="urgent-icon" title="Notfall"><ExclamationTriangleIcon /></span>}
                     </div>
                 </td>
