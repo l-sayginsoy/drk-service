@@ -4,6 +4,7 @@ import { Ticket, Status, Priority, Role, User, AppSettings } from '../types';
 import { XIcon } from './icons/XIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { statusColorMap, statusBgColorMap } from '../constants';
+import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 
 
 const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -52,6 +53,7 @@ interface TicketDetailSidebarProps {
 }
 
 const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClose, onUpdateTicket, technicians, statuses, currentUser, appSettings }) => {
+    const [viewingImageSrc, setViewingImageSrc] = useState<string | null>(null);
     const [newNote, setNewNote] = useState('');
 
     useEffect(() => {
@@ -272,9 +274,69 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             }
             
             .photo-gallery { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-            .photo-thumbnail { width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+            .photo-thumbnail { 
+                width: 60px; height: 60px; 
+                border-radius: var(--radius-md); 
+                overflow: hidden; 
+                border: 1px solid var(--border); 
+                cursor: pointer;
+                padding: 0;
+                background: none;
+            }
             .photo-thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s ease; }
             .photo-thumbnail:hover img { transform: scale(1.1); }
+            
+            .lightbox-overlay {
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 102;
+                animation: fadeIn 0.3s ease;
+            }
+            .lightbox-content-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            .lightbox-image {
+                max-width: 90vw; max-height: 85vh;
+                object-fit: contain;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                border-radius: var(--radius-md);
+            }
+            .lightbox-close-btn {
+                position: absolute; top: 2rem; right: 2rem;
+                background: none; border: none; cursor: pointer;
+                color: rgba(255,255,255,0.7);
+                transition: color 0.2s ease;
+            }
+            .lightbox-close-btn:hover {
+                color: white;
+            }
+            .lightbox-close-btn svg {
+                width: 32px; height: 32px;
+            }
+            .lightbox-download-btn {
+                background-color: rgba(40, 40, 40, 0.8);
+                color: #e4e6eb;
+                padding: 0.6rem 1.2rem;
+                border-radius: var(--radius-md);
+                text-decoration: none;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.75rem;
+                transition: background-color 0.2s ease;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            .lightbox-download-btn:hover {
+                background-color: rgba(58, 59, 60, 0.9);
+            }
+            .lightbox-download-btn svg {
+                width: 20px;
+                height: 20px;
+            }
         `}</style>
         <div className="sidebar-header-compact">
             <h2 className="sidebar-title-compact">
@@ -382,9 +444,9 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
                     <p className="detail-label-compact">Fotos</p>
                     <div className="photo-gallery">
                         {ticket.photos.map((photo, index) => (
-                            <a key={index} href={photo} target="_blank" rel="noopener noreferrer" className="photo-thumbnail">
+                            <button key={index} onClick={() => setViewingImageSrc(photo)} className="photo-thumbnail">
                                 <img src={photo} alt={`Foto ${index + 1}`} />
-                            </a>
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -406,6 +468,22 @@ const TicketDetailSidebar: React.FC<TicketDetailSidebarProps> = ({ ticket, onClo
             </div>
         </div>
       </div>
+      {viewingImageSrc && (
+          <div className="lightbox-overlay" onClick={() => setViewingImageSrc(null)}>
+              <button className="lightbox-close-btn" onClick={() => setViewingImageSrc(null)}><XIcon /></button>
+              <div className="lightbox-content-wrapper" onClick={e => e.stopPropagation()}>
+                <img src={viewingImageSrc} alt="Vergrößerte Ansicht" className="lightbox-image" />
+                 <a
+                    href={viewingImageSrc}
+                    download={`ticket-${ticket.id}-photo.jpeg`}
+                    className="lightbox-download-btn"
+                  >
+                    <DocumentArrowDownIcon />
+                    Herunterladen
+                  </a>
+              </div>
+          </div>
+      )}
     </>
   );
 };
