@@ -1,0 +1,267 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Systemdokumentation: Intelligentes Facility Management Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #222;
+            line-height: 1.2;
+            margin-top: 1.5em;
+        }
+        h1 {
+            font-size: 2.5em;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 0.5em;
+            margin-bottom: 1em;
+        }
+        h2 {
+            font-size: 1.75em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 0.3em;
+            margin-bottom: 1em;
+        }
+        h3 {
+            font-size: 1.25em;
+            margin-bottom: 0.8em;
+        }
+        p {
+            margin-bottom: 1em;
+        }
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 1em;
+        }
+        li {
+            margin-bottom: 0.5em;
+        }
+        strong {
+            font-weight: 600;
+        }
+        code {
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: "Courier New", Courier, monospace;
+        }
+        .intro {
+            font-style: italic;
+            color: #555;
+            border-left: 4px solid #0d6efd;
+            padding-left: 15px;
+            background-color: #f0f6ff;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+        @media print {
+            body {
+                background-color: #fff;
+                margin: 0;
+                padding: 0;
+            }
+            h1, h2, h3 {
+                page-break-after: avoid;
+            }
+            .intro {
+                background-color: #f2f2f2;
+                border-color: #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Systemdokumentation: Intelligentes Facility Management Dashboard</h1>
+
+    <div class="intro">
+        <p><strong>Einleitung: Die Philosophie der Anwendung</strong></p>
+        <p>Das Ziel dieser Anwendung ist die fundamentale Effizienzsteigerung im Facility Management. Durch eine Kombination aus benutzerfreundlichem Design und einer leistungsstarken Automatisierungs-Engine werden manuelle Arbeitsschritte drastisch reduziert, Fehlerquellen minimiert und eine durchgehende Transparenz für alle Beteiligten – vom Melder über den Techniker bis zum Management – geschaffen. Die App ist als autarke, browserbasierte Lösung konzipiert, die ihre Daten im Local Storage speichert und somit ohne komplexes Server-Backend auskommt.</p>
+    </div>
+
+    <h2>Teil 1: Das Melder-Portal – Die Schnittstelle nach Außen</h2>
+    <p>Das Portal ist der öffentliche Zugangspunkt zur Anwendung. Es ist bewusst minimalistisch und geführt gestaltet, um Meldungen so einfach und präzise wie möglich zu machen.</p>
+
+    <h3>1.1. Ticket-Erstellung (Der geführte Prozess)</h3>
+    <p>Ein Nutzer kann ohne Anmeldung eine neue Störung melden. Der Prozess ist so aufgebaut, dass das System im Hintergrund bereits die Weichen für eine schnelle Bearbeitung stellt.</p>
+    <ul>
+        <li><strong>Felder & Eingaben:</strong>
+            <ul>
+                <li>Bereich: Eine vordefinierte Liste von Standorten (z.B. "Küche", "Verwaltung").</li>
+                <li>Ort/Detail: Ein Freitextfeld zur Spezifizierung des Ortes (z.B. "Raum 102", "Maschine 3").</li>
+                <li>Kategorie: Eine Auswahl vordefinierter Problemkategorien (z.B. "Sicherheit", "Komfort", "IT-Infrastruktur"). Dies ist ein entscheidender Input für die Automatisierung.</li>
+                <li>Betreff & Beschreibung: Felder zur genauen Beschreibung des Problems.</li>
+            </ul>
+        </li>
+        <li><strong>Intelligente Einschränkungen:</strong>
+            <ul>
+                <li>Der Melder kann bewusst <strong>keine Priorität</strong> und <strong>keinen Techniker</strong> auswählen. Diese Felder sind im Meldeformular nicht vorhanden.</li>
+                <li><strong>Logik dahinter:</strong> Die Priorität wird zuverlässiger vom System anhand der Kategorie bestimmt (siehe Teil 2.1). Die Technikerzuweisung erfolgt ebenfalls automatisch basierend auf Skill und Auslastung, was menschliche Fehleinschätzungen vermeidet.</li>
+            </ul>
+        </li>
+        <li><strong>Foto-Upload:</strong>
+            <ul>
+                <li>Es können bis zu <strong>3 Fotos</strong> zu einer Meldung hinzugefügt werden.</li>
+                <li>Die App bietet die Option, ein Foto direkt mit der <strong>Gerätekamera</strong> aufzunehmen (<code>&lt;input type="file" capture&gt;</code>) oder aus der <strong>Galerie</strong> auszuwählen.</li>
+                <li>Alle hochgeladenen Bilder werden vor dem Speichern <strong>automatisch komprimiert</strong>, um den Speicherplatz im Browser zu schonen und die Performance zu gewährleisten.</li>
+            </ul>
+        </li>
+        <li><strong>Optionale Felder:</strong>
+            <ul>
+                <li>Wunsch-Termin: Ermöglicht dem Melder, eine Präferenz anzugeben.</li>
+                <li>E-Mail-Adresse: Falls angegeben, kann das System (simulierte) Status-Updates per E-Mail senden.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3>1.2. Status-Prüfung (Transparenz für den Melder)</h3>
+    <p>Melder können den Fortschritt ihrer Meldung jederzeit einsehen.</p>
+    <ul>
+        <li><strong>Suche:</strong> Die Suche erfolgt über die eindeutige <strong>Ticket-ID</strong>, die nach erfolgreicher Erstellung angezeigt wird.</li>
+        <li><strong>Angezeigte Informationen:</strong>
+            <ul>
+                <li>Aktueller Status (z.B. "Offen", "In Arbeit").</li>
+                <li>Zugewiesener Techniker (falls bereits erfolgt).</li>
+                <li><strong>Letzte öffentliche Notizen/Updates:</strong> Eine chronologische Ansicht der letzten Kommentare, die vom Techniker oder Admin hinzugefügt wurden.</li>
+            </ul>
+        </li>
+        <li><strong>Rückkanal:</strong>
+            <ul>
+                <li>Der Melder kann einem bestehenden Ticket eine <strong>neue Notiz</strong> hinzufügen.</li>
+                <li>Diese Aktion setzt intern das Flag <code>hasNewNoteFromReporter</code> auf <code>true</code>, was in der Hauptanwendung durch einen visuellen Indikator signalisiert wird und den Techniker über die neue Information in Kenntnis setzt.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h2>Teil 2: Das Herzstück – Die intelligente Automatisierungs-Engine</h2>
+    <p>Sobald ein Ticket erstellt wird, beginnt die Automatisierungs-Engine im Hintergrund zu arbeiten. Ziel ist es, jedes Ticket ohne manuellen Eingriff optimal vorzubereiten und zu steuern.</p>
+
+    <h3>2.1. Bei Ticketeingang (Sekunde Null)</h3>
+    <ul>
+        <li><strong>Automatische Priorisierung:</strong>
+            <ul>
+                <li>Das System analysiert die vom Melder gewählte <strong>Kategorie</strong>.</li>
+                <li>Jeder Kategorie ist in den Einstellungen eine <strong>Standard-Priorität</strong> zugewiesen (z.B. "Sicherheit" -> "Hoch"). Diese wird automatisch für das neue Ticket gesetzt.</li>
+            </ul>
+        </li>
+        <li><strong>SLA-basiertes Fälligkeitsdatum:</strong>
+            <ul>
+                <li>Anhand der Kombination aus <strong>Kategorie und Priorität</strong> wird in der <strong>SLA-Matrix</strong> (in den Einstellungen definiert) die festgelegte Reaktionszeit in Stunden ermittelt.</li>
+                <li>Das System berechnet daraus präzise das Fälligkeitsdatum und trägt es in das Ticket ein.</li>
+            </ul>
+        </li>
+        <li><strong>Automatisches Routing & Techniker-Zuweisung:</strong>
+            <ol>
+                <li>Die Engine scannt <strong>Betreff und Beschreibung</strong> des Tickets nach vordefinierten <strong>Keywords</strong> (z.B. "Heizung", "Wasserhahn", "Strom").</li>
+                <li>Findet die passende <strong>Routing-Regel</strong> und den damit verknüpften <strong>Skill</strong> (z.B. "HLK", "Sanitär", "Elektrik").</li>
+                <li>Das System filtert alle Benutzer nach aktiven und verfügbaren Technikern, die über diesen Skill verfügen.</li>
+                <li>Es berechnet die aktuelle <strong>Auslastung</strong> jedes passenden Technikers (Anzahl der ihm zugewiesenen, nicht abgeschlossenen Tickets).</li>
+                <li>Das Ticket wird automatisch dem qualifizierten Techniker mit der <strong>geringsten Auslastung</strong> zugewiesen.</li>
+                <li><strong>Fallback:</strong> Wenn kein passender Techniker gefunden wird, bleibt die Zuweisung auf "N/A", damit ein Admin manuell zuweisen kann.</li>
+            </ol>
+        </li>
+    </ul>
+
+    <h3>2.2. Laufende Systemüberwachung</h3>
+    <p>Die App führt kontinuierlich (simulierte tägliche) Checks durch, um den Ticket-Lebenszyklus zu verwalten.</p>
+    <ul>
+        <li><strong>Überfälligkeits-Logik:</strong> Ein automatischer Prozess prüft täglich alle nicht abgeschlossenen Tickets. Wenn das Fälligkeitsdatum überschritten ist, wird der Status automatisch auf <strong>"Überfällig"</strong> gesetzt.</li>
+        <li><strong>Wartungsplan-Generator:</strong> Das System prüft täglich die hinterlegten Wartungspläne. Ist ein Plan basierend auf seinem Intervall und dem Datum der letzten Ausführung fällig, wird automatisch ein neues, <strong>präventives Wartungsticket</strong> mit allen vordefinierten Informationen (Aufgabe, Priorität etc.) erstellt.</li>
+        <li><strong>Automatische Umverteilung bei Abwesenheit:</strong> Wenn ein Admin den Status eines Technikers auf "Abwesend" setzt, scannt das System dessen Ticketliste. Kritische Tickets (z.B. hohe Priorität, bald fällig) werden identifiziert und automatisch nach den oben beschriebenen Routing-Regeln an einen verfügbaren Kollegen umverteilt.</li>
+    </ul>
+
+    <h2>Teil 3: Die Hauptanwendung – Das Cockpit für Techniker & Admins</h2>
+    <p>Dies ist die passwortgeschützte Hauptansicht zur Verwaltung und Bearbeitung aller Tickets.</p>
+
+    <h3>3.1. Rollen & Berechtigungen</h3>
+    <ul>
+        <li><strong>Admin:</strong> Hat Vollzugriff. Sieht alle Tickets und alle Ansichten (Dashboard, Reports etc.) und kann die "Steuerzentrale" (Settings) zur Konfiguration der Automatisierung verwalten.</li>
+        <li><strong>Techniker:</strong> Hat eingeschränkten Zugriff. Sieht standardmäßig nur die ihm zugewiesenen Tickets in den Ansichten "Aktuelle Tickets" und "Abgeschlossen". Hat keinen Zugriff auf Dashboard, Reports, Techniker-Übersicht und Settings.</li>
+    </ul>
+
+    <h3>3.2. Die Ansichten im Detail</h3>
+    <ul>
+        <li><strong>Dashboard (Kanban-Ansicht):</strong>
+            <ul>
+                <li>Eine visuelle Übersicht aller aktiven Tickets, aufgeteilt in Spalten nach Status ("Offen", "In Arbeit", "Überfällig").</li>
+                <li>Tickets werden innerhalb der Spalten automatisch nach Dringlichkeit (Notfall > Überfällig > Priorität) sortiert.</li>
+                <li>Ermöglicht eine schnelle Statusänderung per <strong>Drag & Drop</strong> eines Tickets von einer Spalte in die andere.</li>
+            </ul>
+        </li>
+        <li><strong>Ticket-Liste (Tabellenansicht):</strong>
+            <ul>
+                <li>Eine detaillierte Listenansicht, die sich hervorragend für die gezielte Analyse eignet.</li>
+                <li><strong>Funktionen:</strong> Volltextsuche, Filtern nach allen Kriterien, Sortieren jeder Spalte und <strong>Gruppieren</strong> von Tickets nach Status, Bereich oder Techniker.</li>
+            </ul>
+        </li>
+        <li><strong>Techniker-Übersicht:</strong>
+            <ul>
+                <li>Ein reines Admin-Tool zur Performance-Analyse.</li>
+                <li>Zeigt eine Übersicht aller Techniker mit KPIs wie: aktuelle Auslastung, Performance-Trend und prozentualer Anteil an der Gesamtauslastung.</li>
+            </ul>
+        </li>
+        <li><strong>Reports-Ansicht:</strong>
+            <ul>
+                <li>Die "Management-Ebene" mit grafischen Auswertungen.</li>
+                <li>Zeigt filterbare KPIs wie Gesamtzahl der Tickets, Lösungsquote, durchschnittliche Lösungszeit und Hotspots (Bereiche mit den meisten Tickets).</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3>3.3. Ticket-Management</h3>
+    <ul>
+        <li><strong>Detail-Seitenleiste:</strong>
+            <ul>
+                <li>Öffnet sich bei Klick auf ein Ticket und ist der zentrale Ort für die Bearbeitung.</li>
+                <li>Ermöglicht das Ändern aller relevanten Felder (Status, Priorität, Techniker etc.).</li>
+                <li>Zeigt alle Stammdaten, die Beschreibung, Fotos und die <strong>vollständige Notiz-Historie</strong>.</li>
+                <li>Ermöglicht das Hinzufügen neuer, interner Notizen.</li>
+            </ul>
+        </li>
+        <li><strong>Massenbearbeitung (Bulk Actions):</strong>
+            <ul>
+                <li>In der Tabellenansicht können mehrere Tickets per Checkbox ausgewählt werden.</li>
+                <li>Eine Aktionsleiste erscheint, die es ermöglicht, für alle ausgewählten Tickets gleichzeitig den <strong>Status zu ändern</strong>, einen <strong>Techniker zuzuweisen</strong> oder sie zu <strong>löschen</strong>.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h2>Teil 4: Die Steuerzentrale – Der Admin-Bereich (Settings)</h2>
+    <p>Hier wird das "Gehirn" der Anwendung konfiguriert. Alle Automatisierungsregeln und Stammdaten werden hier verwaltet.</p>
+
+    <h3>4.1. Prozess-Steuerung</h3>
+    <ul>
+        <li><strong>Ticket-Kategorien:</strong> Admins können die im Melde-Portal auswählbaren Kategorien definieren und ihnen eine Standard-Priorität zuweisen.</li>
+        <li><strong>SLA-Matrix:</strong> Hier wird die Logik für Fälligkeiten festgelegt, indem für eine Kombination aus Kategorie und Priorität eine Reaktionszeit in Stunden definiert wird.</li>
+        <li><strong>Routing-Regeln:</strong> Definition der Keyword-Skill-Zuweisungen für die automatische Techniker-Zuweisung.</li>
+    </ul>
+
+    <h3>4.2. Stammdaten-Verwaltung</h3>
+    <ul>
+        <li><strong>Benutzer & Teams:</strong> Anlegen, Bearbeiten und Deaktivieren von Benutzern. Zuweisung von Rollen (Admin/Techniker) und Skills.</li>
+        <li><strong>Standorte & Anlagen:</strong> Verwaltung der Orte, die im Melde-Portal zur Auswahl stehen.</li>
+    </ul>
+
+    <h2>Teil 5: Globale Funktionen</h2>
+    <ul>
+        <li><strong>UI/UX:</strong> Die gesamte Anwendung unterstützt einen <strong>Light- & Dark-Mode</strong> und ist <strong>responsiv</strong> für mobile Geräte.</li>
+        <li><strong>Datenhaltung:</strong> Nutzung des <strong>Local Storage</strong> im Browser zur Speicherung aller Daten, was die App ohne Server-Backend lauffähig macht.</li>
+        <li><strong>Export-Funktionen:</strong>
+            <ul>
+                <li>Export der aktuellen Ticket-Ansicht als <strong>CSV-Datei</strong> oder als druckfertiges <strong>PDF-Dokument</strong>.</li>
+            </ul>
+        </li>
+    </ul>
+
+</body>
+</html>

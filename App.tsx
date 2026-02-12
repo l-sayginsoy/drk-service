@@ -250,7 +250,6 @@ const App: React.FC = () => {
     });
 
     if (duePlans.length > 0) {
-        const newTickets: Ticket[] = [];
         const updatedPlans = [...maintenancePlans];
 
         duePlans.forEach(plan => {
@@ -259,7 +258,8 @@ const App: React.FC = () => {
             
             const location = locations.find(l => l.id === asset.locationId);
 
-            const newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status'> = {
+// FIX: Changed type annotation of newTicket to match function parameter and added missing categoryId.
+            const newTicket: Omit<Ticket, 'id' | 'entryDate' | 'status' | 'priority'> & { priority?: Priority } = {
                 ticketType: 'preventive',
                 title: `Wartung: ${asset.name}`,
                 area: location?.name || 'Unbekannt',
@@ -269,6 +269,7 @@ const App: React.FC = () => {
                 technician: 'N/A', // Will be set by routing logic
                 priority: plan.ticketPriority,
                 description: plan.taskDescription,
+                categoryId: 'cat-gebaeudetechnik',
             };
             
             const ticketId = handleAddNewTicket(newTicket, true); // Add ticket without opening modal
@@ -378,6 +379,34 @@ const App: React.FC = () => {
     return newTicket.id;
   };
   
+  // FIX: Implement bulk action handlers to replace placeholder functions and resolve prop type errors.
+  const handleBulkUpdate = (property: keyof Ticket, value: any) => {
+    setTickets(prevTickets =>
+      prevTickets.map(ticket => {
+        if (selectedTicketIds.includes(ticket.id)) {
+          const updatedTicket = { ...ticket, [property]: value };
+          if (property === 'status' && value === Status.Abgeschlossen && !ticket.completionDate) {
+            updatedTicket.completionDate = new Date().toLocaleDateString('de-DE', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            });
+          }
+          return updatedTicket;
+        }
+        return ticket;
+      })
+    );
+    setSelectedTicketIds([]);
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Sind Sie sicher, dass Sie ${selectedTicketIds.length} Tickets endgültig löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.`)) {
+      setTickets(prev => prev.filter(ticket => !selectedTicketIds.includes(ticket.id)));
+      setSelectedTicketIds([]);
+    }
+  };
+
   const activeLocations = useMemo(() => locations.filter(a => a.isActive), [locations]);
   const activeTechnicians = useMemo(() => users.filter(u => u.isActive && u.role === Role.Technician), [users]);
 
@@ -537,7 +566,7 @@ const App: React.FC = () => {
       <main>
         <Header stats={stats} filters={filters} setFilters={setFilters} currentView={currentView} />
         {selectedTicketIds.length > 0 && (currentView === 'tickets' || currentView === 'erledigt') ? (
-             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={()=>{}} onBulkDelete={()=>{}} onClearSelection={() => setSelectedTicketIds([])} />
+             <BulkActionBar selectedCount={selectedTicketIds.length} technicians={allTechnicianNames} statuses={Object.values(Status)} onBulkUpdate={handleBulkUpdate} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedTicketIds([])} />
         ) : ( (currentView === 'dashboard' || currentView === 'tickets' || currentView === 'erledigt' || currentView === 'techniker') &&
             <FilterBar filters={filters} setFilters={setFilters} locations={locationOptionsWithCounts} technicians={['Alle', ...activeTechnicians.map(t=>t.name)]} statuses={STATUSES} userRole={currentUser.role} groupBy={groupBy} setGroupBy={setGroupBy} currentView={currentView} />
         )}
