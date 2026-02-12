@@ -9,6 +9,9 @@ import { CameraIcon } from './icons/CameraIcon';
 import { XIcon } from './icons/XIcon';
 import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
 import { KeyIcon } from './icons/KeyIcon';
+import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
+import { ClipboardIcon } from './icons/ClipboardIcon';
+import { CheckIcon } from './icons/CheckIcon';
 
 const LOCAL_STORAGE_KEY = 'facility-management-tickets';
 const DRAFT_STORAGE_KEY = 'facility-management-ticket-draft';
@@ -280,6 +283,15 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
   const [noteAdded, setNoteAdded] = useState(false);
   const [loginAttempt, setLoginAttempt] = useState({ name: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (text: string | null) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    });
+  };
 
   const handleTicketPruefen = (e: React.FormEvent) => {
     e.preventDefault();
@@ -472,11 +484,23 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
        case 'success':
         return (
             <>
-                <h2 className="portal-subtitle">Meldung erfolgreich gesendet!</h2>
-                <div className="success-message">
-                    <p>Vielen Dank, Ihr Ticket wurde erfolgreich erstellt mit der ID:</p>
-                    <div className="success-ticket-id">{newlyCreatedTicketId}</div>
-                    <p>Bitte bewahren Sie diese ID für zukünftige Anfragen auf.</p>
+                <div className="success-content">
+                    <div className="success-icon-wrapper">
+                        <CheckBadgeIcon />
+                    </div>
+                    <h2 className="portal-subtitle" style={{position: 'static', transform: 'none'}}>Meldung erfolgreich gesendet!</h2>
+                    <div className="success-message">
+                        <p>Vielen Dank! Ihr Ticket wurde erfolgreich erstellt. Bitte bewahren Sie die folgende ID für zukünftige Anfragen auf:</p>
+                        <div className="success-ticket-id-wrapper">
+                            <span className="success-ticket-id">{newlyCreatedTicketId}</span>
+                            <button className="copy-btn" onClick={() => handleCopy(newlyCreatedTicketId)} title={copied ? 'Kopiert!' : 'In Zwischenablage kopieren'}>
+                                {copied ? <CheckIcon style={{color: 'var(--accent-success)'}} /> : <ClipboardIcon />}
+                            </button>
+                        </div>
+                        <p className="email-info">
+                            Falls Sie eine E-Mail-Adresse angegeben haben, wird eine Bestätigung an diese gesendet (in dieser Demo-Version wird dies nur simuliert).
+                        </p>
+                    </div>
                 </div>
                 <div className="portal-actions">
                     <button className="portal-btn btn-primary" onClick={resetAndGoToMenu}>Zurück zum Hauptmenü</button>
@@ -570,23 +594,21 @@ const Portal: React.FC<PortalProps> = ({ appSettings, onLogin, tickets, location
                 .notes-title { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; }
                 .portal-note-item { background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 0.5rem; }
                 .note-meta { display: block; text-align: right; font-size: 0.8em; font-style: italic; color: var(--text-muted); margin-top: 0.5rem; }
-                .success-message { text-align: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
-                .success-ticket-id { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px; margin: 1rem auto; display: inline-block; border: 1px solid var(--border); }
+                .success-content { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2rem 1rem; gap: 1.5rem; }
+                .success-icon-wrapper { background-color: rgba(40, 167, 69, 0.1); color: var(--accent-success); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+                .success-icon-wrapper svg { width: 48px; height: 48px; }
+                .success-message { display: flex; flex-direction: column; align-items: center; gap: 1rem; font-size: 0.95rem; color: var(--text-secondary); }
+                .success-ticket-id-wrapper { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; margin: 0.5rem 0; }
+                .success-ticket-id { font-size: 1.75rem; font-weight: 700; color: var(--accent-primary); font-family: monospace; }
+                .copy-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); position: relative; padding: 0.5rem; border-radius: 50%; transition: background-color 0.2s ease; }
+                .copy-btn:hover { color: var(--text-primary); background-color: var(--border); }
+                .copy-btn svg { width: 20px; height: 20px; }
+                .email-info { font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem; max-width: 400px; }
                 .note-add-section { padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--border); }
                 .note-add-section label { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
                 .note-add-section textarea { min-height: 80px; resize: vertical; }
                 .note-added-success { color: var(--accent-success); font-size: 0.9rem; text-align: center; margin-top: 0.5rem; font-weight: 500; }
-                .login-hint {
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                    text-align: center;
-                    padding: 0.75rem;
-                    background: var(--bg-primary);
-                    border: 1px solid var(--border);
-                    border-radius: var(--radius-md);
-                    margin-top: 0.5rem;
-                    line-height: 1.5;
-                }
+                .login-hint { font-size: 0.85rem; color: var(--text-secondary); text-align: center; padding: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-md); margin-top: 0.5rem; line-height: 1.5; }
                 .login-hint p { margin: 0; }
             `}</style>
             <div className={`portal-box view-${view}`}>

@@ -98,7 +98,7 @@ const getFormattedDate = () => {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    // FIX: Corrected a call to padStart which was missing its arguments.
+    // FIX: The padStart method requires at least one argument, but was called with zero.
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
@@ -388,6 +388,13 @@ const App: React.FC = () => {
     };
 
     setTickets(prevTickets => [newTicket, ...prevTickets]);
+    
+    if (newTicket.reporterEmail) {
+        console.log(`[E-Mail-Simulation] Sende Bestätigungs-E-Mail an: ${newTicket.reporterEmail}`);
+        console.log(`Betreff: Ihr Ticket #${newTicket.id} wurde erstellt`);
+        console.log(`Nachricht: Hallo ${newTicket.reporter},\n\nvielen Dank für Ihre Meldung "${newTicket.title}". Wir haben Ihr Ticket mit der ID ${newTicket.id} erhalten und werden es so schnell wie möglich bearbeiten.\n\nSie können den Status jederzeit im Portal überprüfen.\n\nMit freundlichen Grüßen,\nIhr ${appSettings.appName}-Team`);
+    }
+
     if (!silent) setIsModalOpen(false);
     return newTicket.id;
   };
